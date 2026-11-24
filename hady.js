@@ -279,13 +279,31 @@ if(lastID){
   let d = JSON.parse(localStorage.getItem(getKey(lastID)) || "null");
   if(d) document.getElementById("inputNama").value = d.nama;
 }
+// Kirim posisi lebih sering, cuma kalo lagi gerak
 setInterval(async ()=>{
   if(!myID || myID==="FISH-DEMO") return;
   try{ await apiPost("/api/posisi", {id: myID, nama, x: Math.round(me.x), y: Math.round(me.y), lv}); }catch(e){}
-}, 1000);
+}, 120); // dari 1000ms jadi 120ms
+
+// Ambil posisi temen lebih sering
 setInterval(async ()=>{
   try{
     let r = await fetch("/api/online").then(r=>r.json());
-    players = r.players.filter(p=>p.id!==myID).map(p=>({nama:p.nama, x:p.x, y:p.y, lv:p.lv, id:p.id}));
+    let baru = r.players.filter(p=>p.id!==myID);
+    // Jangan langsung timpa, tapi simpen sebagai TARGET
+    baru.forEach(p=>{
+      let lama = players.find(q=>q.id===p.id);
+      if(lama){
+        lama.tx = p.x; // target X
+        lama.ty = p.y; // target Y
+        lama.nama = p.nama;
+        lama.lv = p.lv;
+      } else {
+        // Player baru, langsung taro di posisi itu, jangan dari 0,0
+        players.push({id:p.id, nama:p.nama, lv:p.lv, x:p.x, y:p.y, tx:p.x, ty:p.y, dir:1, jalan:0});
+      }
+    });
+    // Hapus yang udah offline
+    players = players.filter(p=> baru.some(q=>q.id===p.id));
   }catch(e){}
-}, 2000);
+}, 250); // dari 2000ms jadi 250ms
