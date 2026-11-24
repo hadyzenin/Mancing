@@ -263,14 +263,31 @@ function draw(){
     if(d.y>cv.height) d.y=0;
     ctx.font="12px serif"; ctx.fillText("🍃", d.x % cv.width, d.y);
   });
-  players.forEach(p=>{ gambarKarakter(p.x, p.y, p.nama, 1, 0, false, false); });
-  let jalan = Math.abs(me.dx)+Math.abs(me.dy);
-  me.jalan = jalan;
-  gambarKarakter(me.x, me.y, nama, me.dir, jalan, me.mancing, true);
-  me.x+=me.dx; me.y+=me.dy;
-  me.x=Math.max(40,Math.min(cv.width-40,me.x)); me.y=Math.max(70,Math.min(cv.height-110,me.y));
-  requestAnimationFrame(draw);
-}
+  players.forEach(p=>{
+  // Interpolasi: jalan pelan ke target, bukan teleport
+  let dx = (p.tx ?? p.x) - p.x;
+  let dy = (p.ty ?? p.y) - p.y;
+  let jarak = Math.sqrt(dx*dx + dy*dy);
+
+  if(jarak > 1){
+    // Kecepatan ngikutin jarak, kalo jauh makin cepet biar gak ketinggalan
+    let speed = Math.min(4, 1.5 + jarak * 0.12);
+    p.x += dx / jarak * speed;
+    p.y += dy / jarak * speed;
+    p.jalan = 1;
+    if(dx !== 0) p.dir = dx > 0 ? 1 : -1;
+  } else {
+    p.jalan = 0;
+  }
+
+  // Kalo jaraknya kejauhan banget (baru login / lag parah), baru teleport
+  if(jarak > 120){
+    p.x = p.tx;
+    p.y = p.ty;
+  }
+
+  gambarKarakter(p.x, p.y, p.nama, p.dir || 1, p.jalan, false, false);
+});
 setInterval(()=>{ let d=new Date(); document.getElementById("jam").textContent=d.toLocaleDateString("id-ID",{weekday:"short",day:"numeric",month:"short"})+" · "+d.toLocaleTimeString("id-ID",{hour:"2-digit",minute:"2-digit"})+" WITA"; },1000);
 
 let lastID = localStorage.getItem("mancing_lastID");
