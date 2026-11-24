@@ -274,10 +274,10 @@ function draw(){
     if(d.y>cv.height) d.y=0;
     ctx.font="12px serif"; ctx.fillText("🍃", d.x % cv.width, d.y);
   });
-  // PLAYER LAIN - LERP HALUS 0.18, GAK LONCAT
+  // PLAYER LAIN - LERP 0.35 BIAR MULUS
   players.forEach(p=>{
-    p.x += ((p.tx ?? p.x) - p.x) * 0.18;
-    p.y += ((p.ty ?? p.y) - p.y) * 0.18;
+    p.x += ((p.tx ?? p.x) - p.x) * 0.35;
+    p.y += ((p.ty ?? p.y) - p.y) * 0.35;
     let dx = (p.tx ?? p.x) - p.x;
     if(Math.abs(dx) > 2){ p.jalan = 1; p.dir = dx > 0 ? 1 : -1; } else { p.jalan = 0; }
     gambarKarakter(p.x, p.y, p.nama, p.dir || 1, p.jalan, false, false);
@@ -297,29 +297,55 @@ if(lastID){
   let d = JSON.parse(localStorage.getItem(getKey(lastID)) || "null");
   if(d) document.getElementById("inputNama").value = d.nama;
 }
-// KIRIM POSISI NORMALISASI 0-1000 BIAR SAMA DI SEMUA HP
-setInterval(async ()=>{
-  if(!myID || myID==="FISH-DEMO") return;
+
+// ===== FIREBASE REALTIME - HADY-C34E8 - UDAH LENGKAP =====
+const firebaseConfig = {
+  apiKey: "AIzaSyCt1hGe42I6Xg9ji9IDt9vbcnbZQYFw1Vw",
+  authDomain: "hady-c34e8.firebaseapp.com",
+  databaseURL: "https://hady-c34e8-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "hady-c34e8",
+  storageBucket: "hady-c34e8.appspot.com",
+  messagingSenderId: "879025180790",
+  appId: "1:879025180790:web:eca33cce19a31388174f57"
+};
+
+let db = null;
+try{
+  firebase.initializeApp(firebaseConfig);
+  db = firebase.database();
+  console.log("Firebase nyambung!");
+}catch(e){ console.log("Firebase gagal:", e); }
+
+// Kirim posisi ke Firebase tiap 100ms
+setInterval(()=>{
+  if(!db || !myID || myID==="FISH-DEMO") return;
   let nx = Math.round(me.x / innerWidth * 1000);
   let ny = Math.round(me.y / innerHeight * 1000);
-  try{ await apiPost("/api/posisi", {id: myID, nama, x: nx, y: ny, lv}); }catch(e){}
-}, 150);
-// AMBIL POSISI TEMEN - JANGAN LANGSUNG HAPUS, TUNGGU 3 DETIK
-setInterval(async ()=>{
-  try{
-    let r = await fetch("/api/online").then(r=>r.json());
-    let baru = r.players.filter(p=>p.id!==myID);
+  db.ref("online/" + myID).set({ nama, x: nx, y: ny, lv, lastSeen: Date.now() });
+}, 100);
+
+// Dengerin temen secara langsung
+if(db){
+  db.ref("online").on("value", (snap)=>{
+    let data = snap.val() || {};
     let sekarang = Date.now();
-    baru.forEach(p=>{
+    Object.keys(data).forEach(id=>{
+      if(id === myID) return;
+      let p = data[id];
+      if(sekarang - p.lastSeen > 5000) return;
       let px = p.x / 1000 * innerWidth;
       let py = p.y / 1000 * innerHeight;
-      let lama = players.find(q=>q.id===p.id);
+      let lama = players.find(q=>q.id===id);
       if(lama){
         lama.tx = px; lama.ty = py; lama.nama = p.nama; lama.lv = p.lv; lama.lastSeen = sekarang;
       } else {
-        players.push({id:p.id, nama:p.nama, lv:p.lv, x:px, y:py, tx:px, ty:py, dir:1, jalan:0, lastSeen: sekarang});
+        players.push({id, nama:p.nama, lv:p.lv, x:px, y:py, tx:px, ty:py, dir:1, jalan:0, lastSeen: sekarang});
       }
     });
-    players = players.filter(p=> sekarang - (p.lastSeen||0) < 3000);
-  }catch(e){}
-}, 300);
+    players = players.filter(p=> data[p.id] && sekarang - data[p.id].lastSeen < 5000);
+  });
+}
+
+window.addEventListener("beforeunload", ()=>{
+  if(db && myID) db.ref("online/" + myID).remove();
+});
