@@ -40,16 +40,15 @@ function getKey(id){ return "mancing_" + id; }
 
 async function buatIDBaru(){
   let nm = document.getElementById("inputNama").value.trim() || "Pemancing";
+  let id = "FISH-" + Math.random().toString(36).slice(2,8).toUpperCase();
   try{
     let res = await apiPost("/api/buat-id", { nama: nm });
-    document.getElementById("inputID").value = res.id;
-    document.getElementById("idBaruText").textContent = res.id;
-  }catch(e){
-    let id = "FISH-" + Math.random().toString(36).slice(2,8).toUpperCase();
-    document.getElementById("inputID").value = id;
-    document.getElementById("idBaruText").textContent = id;
-  }
+    if(res.id) id = res.id;
+  }catch(e){}
+  document.getElementById("inputID").value = id;
+  document.getElementById("idBaruText").textContent = id;
   document.getElementById("idBaruBox").style.display = "block";
+  toast("ID baru dibuat: " + id);
 }
 function salinID(){
   let id = document.getElementById("idBaruText").textContent;
@@ -57,18 +56,35 @@ function salinID(){
   toast("ID disalin: " + id);
 }
 async function login(){
-  let id = document.getElementById("inputID").value.trim().toUpperCase();
-  let nm = document.getElementById("inputNama").value.trim() || "Pemancing";
-  if(id.length < 6){ alert("Isi ID dulu, atau klik Buat ID Baru"); return; }
+  let idEl = document.getElementById("inputID");
+  let nmEl = document.getElementById("inputNama");
+  let id = idEl.value.trim().toUpperCase().replace(/[^A-Z0-9-]/g, "");
+  let nm = nmEl.value.trim() || "Pemancing";
+  if(id.length < 6){
+    id = "FISH-" + Math.random().toString(36).slice(2,8).toUpperCase();
+    idEl.value = id;
+    toast("ID otomatis dibuat: " + id);
+  }
   if(!id.startsWith("FISH-")) id = "FISH-" + id;
+  idEl.value = id;
+  myID = id; nama = nm;
   try{
-    let res = await apiPost("/api/login", { id, nama: nm });
+    let ctrl = new AbortController();
+    setTimeout(()=>ctrl.abort(), 2000);
+    let res = await fetch("/api/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, nama: nm }),
+      signal: ctrl.signal
+    }).then(r=>r.json());
     let d = res.data;
-    myID=d.id; nama=d.nama; inv=d.inv||[]; yen=d.yen ?? 500; xp=d.xp; xpMax=d.xpMax; lv=d.lv; rodIdx=d.rodIdx; ownedRods=d.ownedRods||[0];
+    if(d){
+      inv=d.inv||[]; yen=d.yen ?? 500; xp=d.xp||0; xpMax=d.xpMax||100; lv=d.lv||1; rodIdx=d.rodIdx||0; ownedRods=d.ownedRods||[0];
+    }
   }catch(e){
-    myID=id; nama=nm;
+    console.log("Server offline, pake lokal");
     let lama = JSON.parse(localStorage.getItem(getKey(id))||"null");
-    if(lama){ inv=lama.inv; yen=lama.yen ?? 500; xp=lama.xp; xpMax=lama.xpMax; lv=lama.lv; rodIdx=lama.rodIdx; ownedRods=lama.ownedRods||[0]; }
+    if(lama){ inv=lama.inv||[]; yen=lama.yen ?? 500; xp=lama.xp||0; xpMax=lama.xpMax||100; lv=lama.lv||1; rodIdx=lama.rodIdx||0; ownedRods=lama.ownedRods||[0]; }
   }
   startGame();
 }
@@ -263,31 +279,30 @@ function draw(){
     if(d.y>cv.height) d.y=0;
     ctx.font="12px serif"; ctx.fillText("🍃", d.x % cv.width, d.y);
   });
+  // PLAYER LAIN - PAKAI INTERPOLASI BIAR GAK TELEPORT
   players.forEach(p=>{
-  // Interpolasi: jalan pelan ke target, bukan teleport
-  let dx = (p.tx ?? p.x) - p.x;
-  let dy = (p.ty ?? p.y) - p.y;
-  let jarak = Math.sqrt(dx*dx + dy*dy);
-
-  if(jarak > 1){
-    // Kecepatan ngikutin jarak, kalo jauh makin cepet biar gak ketinggalan
-    let speed = Math.min(4, 1.5 + jarak * 0.12);
-    p.x += dx / jarak * speed;
-    p.y += dy / jarak * speed;
-    p.jalan = 1;
-    if(dx !== 0) p.dir = dx > 0 ? 1 : -1;
-  } else {
-    p.jalan = 0;
-  }
-
-  // Kalo jaraknya kejauhan banget (baru login / lag parah), baru teleport
-  if(jarak > 120){
-    p.x = p.tx;
-    p.y = p.ty;
-  }
-
-  gambarKarakter(p.x, p.y, p.nama, p.dir || 1, p.jalan, false, false);
-});
+    let dx = (p.tx ?? p.x) - p.x;
+    let dy = (p.ty ?? p.y) - p.y;
+    let jarak = Math.sqrt(dx*dx + dy*dy);
+    if(jarak > 1){
+      let speed = Math.min(4, 1.5 + jarak * 0.12);
+      p.x += dx / jarak * speed;
+      p.y += dy / jarak * speed;
+      p.jalan = 1;
+      if(dx !== 0) p.dir = dx > 0 ? 1 : -1;
+    } else {
+      p.jalan = 0;
+    }
+    if(jarak > 120){ p.x = p.tx; p.y = p.ty; }
+    gambarKarakter(p.x, p.y, p.nama, p.dir || 1, p.jalan, false, false);
+  });
+  let jalan = Math.abs(me.dx)+Math.abs(me.dy);
+  me.jalan = jalan;
+  gambarKarakter(me.x, me.y, nama, me.dir, jalan, me.mancing, true);
+  me.x+=me.dx; me.y+=me.dy;
+  me.x=Math.max(40,Math.min(cv.width-40,me.x)); me.y=Math.max(70,Math.min(cv.height-110,me.y));
+  requestAnimationFrame(draw);
+}
 setInterval(()=>{ let d=new Date(); document.getElementById("jam").textContent=d.toLocaleDateString("id-ID",{weekday:"short",day:"numeric",month:"short"})+" · "+d.toLocaleTimeString("id-ID",{hour:"2-digit",minute:"2-digit"})+" WITA"; },1000);
 
 let lastID = localStorage.getItem("mancing_lastID");
@@ -296,31 +311,27 @@ if(lastID){
   let d = JSON.parse(localStorage.getItem(getKey(lastID)) || "null");
   if(d) document.getElementById("inputNama").value = d.nama;
 }
-// Kirim posisi lebih sering, cuma kalo lagi gerak
+// KIRIM POSISI TIAP 120ms - BIAR GAK DELAY
 setInterval(async ()=>{
   if(!myID || myID==="FISH-DEMO") return;
   try{ await apiPost("/api/posisi", {id: myID, nama, x: Math.round(me.x), y: Math.round(me.y), lv}); }catch(e){}
-}, 120); // dari 1000ms jadi 120ms
-
-// Ambil posisi temen lebih sering
+}, 120);
+// AMBIL POSISI TEMEN TIAP 250ms + SIMPAN SEBAGAI TARGET
 setInterval(async ()=>{
   try{
     let r = await fetch("/api/online").then(r=>r.json());
     let baru = r.players.filter(p=>p.id!==myID);
-    // Jangan langsung timpa, tapi simpen sebagai TARGET
     baru.forEach(p=>{
       let lama = players.find(q=>q.id===p.id);
       if(lama){
-        lama.tx = p.x; // target X
-        lama.ty = p.y; // target Y
+        lama.tx = p.x;
+        lama.ty = p.y;
         lama.nama = p.nama;
         lama.lv = p.lv;
       } else {
-        // Player baru, langsung taro di posisi itu, jangan dari 0,0
         players.push({id:p.id, nama:p.nama, lv:p.lv, x:p.x, y:p.y, tx:p.x, ty:p.y, dir:1, jalan:0});
       }
     });
-    // Hapus yang udah offline
     players = players.filter(p=> baru.some(q=>q.id===p.id));
   }catch(e){}
-}, 250); // dari 2000ms jadi 250ms
+}, 250);
