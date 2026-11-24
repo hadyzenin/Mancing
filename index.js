@@ -49,7 +49,7 @@ app.post("/api/posisi", (req, res) => {
   const { id, nama, x, y, lv } = req.body;
   if (!id) return res.json({ success: false });
   online.set(id, { nama, x, y, lv, lastSeen: Date.now() });
-  for (const [k, v] of online) { if (Date.now() - v.lastSeen > 5000) online.delete(k); }
+  for (const [k, v] of online) { if (Date.now() - v.lastSeen > 15000) online.delete(k); }
   res.json({ success: true });
 });
 
