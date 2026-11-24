@@ -3,68 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Kiyopon Fish - mancing online</title>
-<style>
-*{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',system-ui,sans-serif;-webkit-tap-highlight-color:transparent}
-body{background:#1a2b1a;overflow:hidden;color:#fff}
-#login{position:fixed;inset:0;background:linear-gradient(180deg,#0b2a4a,#0a4a2a);display:flex;align-items:center;justify-content:center;z-index:100;padding:16px}
-.login-box{background:rgba(255,255,255,.12);backdrop-filter:blur(10px);border:2px solid #fff3;border-radius:24px;padding:28px 22px;width:100%;max-width:380px;text-align:center}
-.login-box h1{font-size:28px;margin-bottom:6px}
-.login-box p{opacity:.85;font-size:13px;margin-bottom:18px}
-.login-box input{width:100%;padding:14px;border-radius:12px;border:none;outline:none;font-size:16px;font-weight:700;text-align:center;letter-spacing:2px;text-transform:uppercase;margin-bottom:12px}
-.login-box button{width:100%;padding:14px;border:none;border-radius:12px;background:#ffd93d;color:#222;font-weight:800;font-size:16px;cursor:pointer}
-.login-box small{display:block;margin-top:12px;opacity:.7;line-height:1.5}
-#game{display:none;position:fixed;inset:0}
-canvas{width:100%;height:100%;display:block;image-rendering:pixelated;background:#8ecf6a}
-.hud{position:absolute;top:10px;left:10px;right:10px;display:flex;justify-content:space-between;pointer-events:none;gap:8px}
-.card{background:rgba(0,0,0,.65);border:2px solid rgba(255,255,255,.25);border-radius:16px;padding:8px 10px;backdrop-filter:blur(4px)}
-.profile{display:flex;gap:8px;align-items:center}
-.avatar{width:42px;height:42px;border-radius:50%;background:#ff6b9d;display:flex;align-items:center;justify-content:center;font-size:22px;border:2px solid #fff}
-.profile b{font-size:14px}
-.profile span{font-size:11px;color:#ffd93d}
-.bar{height:8px;background:#333;border-radius:99px;overflow:hidden;margin-top:4px;width:130px}
-.bar i{display:block;height:100%;background:#4ade80}
-.top-right{display:flex;gap:6px;align-items:center}
-.pill{background:rgba(0,0,0,.65);border:2px solid rgba(255,255,255,.25);border-radius:99px;padding:6px 10px;font-weight:800;font-size:13px}
-.feed{position:absolute;top:74px;left:10px;background:rgba(0,0,0,.6);padding:7px 10px;border-radius:99px;font-size:12px;max-width:82vw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.location{position:absolute;top:74px;right:10px;text-align:right;background:rgba(0,0,0,.6);padding:7px 10px;border-radius:12px;font-size:11px}
-.location b{font-size:12px}
-.controls{position:absolute;bottom:14px;left:12px;right:12px;display:flex;justify-content:space-between;align-items:flex-end;pointer-events:none}
-.joystick{width:96px;height:96px;border-radius:50%;background:rgba(255,255,255,.18);border:2px solid rgba(255,255,255,.4);position:relative;pointer-events:auto;touch-action:none}
-.stick{width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,.55);position:absolute;left:26px;top:26px}
-.right{display:flex;flex-direction:column;align-items:flex-end;gap:8px}
-.btn-fish{width:88px;height:88px;border-radius:50%;background:linear-gradient(180deg,#fff,#ffd93d);border:4px solid #fff;color:#222;font-weight:900;font-size:13px;pointer-events:auto;cursor:pointer;box-shadow:0 6px 0 #b89a00}
-.btn-fish:active{transform:translateY(4px);box-shadow:0 2px 0 #b89a00}
-.btn-fish:disabled{filter:grayscale(1);opacity:.6}
-.inventory{display:flex;gap:6px;pointer-events:auto}
-.slot{width:48px;height:48px;background:rgba(0,0,0,.65);border:2px solid rgba(255,255,255,.3);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:24px;position:relative}
-.slot.active{border-color:#ffd93d;box-shadow:0 0 0 2px #ffd93d}
-.slot span{position:absolute;bottom:2px;right:4px;font-size:10px;font-weight:800}
-.mini-stats{display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end}
-.mini-stats i{background:rgba(0,0,0,.65);border-radius:99px;padding:4px 8px;font-style:normal;font-size:11px;font-weight:700}
-#modal{position:fixed;inset:0;background:rgba(0,0,0,.7);display:none;align-items:center;justify-content:center;z-index:50;padding:16px}
-.modal-box{background:#fff;color:#222;border-radius:20px;padding:20px;width:100%;max-width:380px;text-align:center;animation:pop .3s}
-@keyframes pop{from{transform:scale(.8);opacity:0}to{transform:scale(1);opacity:1}}
-.fish-big{font-size:64px}
-.tier{padding:4px 12px;border-radius:99px;color:#fff;font-weight:800;font-size:12px;display:inline-block;margin:8px 0}
-.Common{background:#9ca3af}.Uncommon{background:#22c55e}.Rare{background:#3b82f6}.Epic{background:#a855f7}.Legendary{background:linear-gradient(90deg,#f59e0b,#ef4444)}
-.modal-box h2{font-size:20px}
-.modal-box button{margin-top:14px;width:100%;padding:12px;border:none;border-radius:12px;background:#111;color:#fff;font-weight:800;cursor:pointer}
-.tabs{display:flex;gap:6px;margin:12px 0}
-.tabs button{flex:1;padding:9px;border-radius:10px;border:1px solid #ddd;background:#f3f3f3;font-weight:700;cursor:pointer}
-.tabs button.on{background:#111;color:#fff}
-.list{text-align:left;max-height:260px;overflow:auto}
-.row{display:flex;justify-content:space-between;align-items:center;padding:9px 8px;border-bottom:1px solid #eee;font-size:13px}
-.row b{font-size:13px}
-.row small{color:#666}
-.lock{opacity:.45}
-#toast{position:fixed;top:120px;left:50%;transform:translateX(-50%);background:#111;padding:10px 14px;border-radius:99px;font-size:13px;font-weight:700;z-index:60;display:none;white-space:nowrap}
-#barGame{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.45);z-index:40}
-.barBox{background:#fff;color:#222;padding:18px;border-radius:18px;width:320px;text-align:center}
-.barTrack{height:18px;background:#eee;border-radius:99px;overflow:hidden;margin:12px 0;position:relative;border:2px solid #333}
-#barFill{height:100%;width:50%;background:#22c55e;transition:width .08s}
-#barZone{position:absolute;top:0;height:100%;background:rgba(250,204,21,.55);border-left:2px solid #eab308;border-right:2px solid #eab308}
-</style>
+<title>Pulau Tengah Laut - Mancing Online</title>
+<link rel="stylesheet" href="hady.css">
 </head>
 <body>
 
@@ -72,19 +12,24 @@ canvas{width:100%;height:100%;display:block;image-rendering:pixelated;background
   <div class="login-box">
     <div style="font-size:48px">🎣</div>
     <h1>Pulau Tengah Laut</h1>
-    <p>Masuk pakai ID dari Bot WA<br>Ketik <b>.mancing id</b> di bot buat dapet ID</p>
+    <p>Data kamu kesimpen di web ini, pakai ID buat pindah HP</p>
     <input id="inputID" placeholder="FISH-XXXXXX" maxlength="12">
     <input id="inputNama" placeholder="Nama Kamu" maxlength="14" style="letter-spacing:0;text-transform:none">
     <button onclick="login()">MASUK PULAU 🏝️</button>
-    <small>Contoh ID: FISH-8K2P9X<br>Player lain bisa ketemu kamu di pulau yang sama</small>
-    <button onclick="demo()" style="background:#fff;margin-top:8px">Main Tanpa ID (Demo)</button>
+    <button onclick="buatIDBaru()" style="background:#fff;margin-top:8px">✨ Buat ID Baru</button>
+    <div id="idBaruBox" style="display:none;background:rgba(255,255,255,.15);border-radius:12px;padding:12px;margin-top:12px">
+      <small style="opacity:.8">ID BARU KAMU, CATET / SCREENSHOT!</small>
+      <b id="idBaruText" style="font-size:22px;letter-spacing:2px;display:block;margin:6px 0">FISH-XXXXXX</b>
+      <button onclick="salinID()" style="padding:8px;background:#ffd93d;color:#222;font-size:13px">📋 Salin ID</button>
+    </div>
+    <small>Contoh ID: FISH-8K2P9X<br>Data: Level, Joran, Ikan, Koin, Gem kesimpen per ID</small>
   </div>
 </div>
 
 <div id="game">
   <canvas id="cv"></canvas>
   <div class="hud">
-    <div class="card profile"><div class="avatar" id="ava">🧑</div><div><b id="pNama">Dysen</b><br><span id="pTitle">Pelaut Lentera</span><div class="bar"><i id="xpBar" style="width:60%"></i></div><div style="font-size:11px"><span id="pXP">2002</span>/<span id="pXPMax">2560</span> • Lv <span id="pLv">8</span></div></div></div>
+    <div class="card profile"><div class="avatar" id="ava">🧑</div><div><b id="pNama">Dysen</b><br><span id="pTitle">Pelaut Lentera</span><div class="bar"><i id="xpBar" style="width:60%"></i></div><div style="font-size:11px"><span id="pXP">0</span>/<span id="pXPMax">100</span> • Lv <span id="pLv">1</span></div></div></div>
     <div class="top-right"><div class="pill">⭐ <span id="pStar">290</span></div><div class="pill">💎 <span id="pGem">310</span></div><div class="pill" onclick="openMenu()" style="cursor:pointer">⚙️</div></div>
   </div>
   <div class="feed" id="feed">🏆 Azzam Zikri dapat Legendary Hiu Paus · 17,2 ton</div>
@@ -103,150 +48,6 @@ canvas{width:100%;height:100%;display:block;image-rendering:pixelated;background
 <div id="toast"></div>
 <div id="barGame"><div class="barBox"><div style="font-size:40px">🐟</div><h3 id="barText">Ikan Nyangkut! Cepet, jaga di zona kuning!</h3><div class="barTrack"><div id="barZone" style="left:35%;width:30%"></div><div id="barFill"></div></div><p style="font-size:12px;color:#666">Spam klik / tap tombol di bawah biar bar tetep di zona kuning</p><button onclick="tapBar()" style="padding:12px 18px;border-radius:99px;border:none;background:#111;color:#fff;font-weight:800;margin-top:8px">TAP! 🎣</button></div></div>
 
-<script>
-const RODS=[
- {lv:1,nama:"Joran Bambu",icon:"🎋",power:0,bonus:""},
- {lv:3,nama:"Joran Kayu",icon:"🪵",power:8,bonus:"+8% Rare"},
- {lv:5,nama:"Joran Karbon",icon:"🎣",power:18,bonus:"+18% Rare"},
- {lv:8,nama:"Joran Titanium",icon:"⚙️",power:30,bonus:"+30% Epic"},
- {lv:12,nama:"Joran Kristal",icon:"💎",power:45,bonus:"+45% Epic"},
- {lv:18,nama:"Joran Dewa Laut",icon:"👑",power:70,bonus:"+70% Legendary"},
-];
-const FISH=[
- {nama:"Gobi",tier:"Common",emoji:"🐟",min:0.02,max:0.08,koin:5,xp:10,w:60},
- {nama:"Mutiara",tier:"Common",emoji:"🐠",min:0.02,max:0.36,koin:8,xp:12,w:55},
- {nama:"Kakap",tier:"Uncommon",emoji:"🐡",min:0.5,max:2.5,koin:25,xp:30,w:28},
- {nama:"Tuna",tier:"Uncommon",emoji:"🐟",min:1,max:8,koin:40,xp:45,w:22},
- {nama:"Arwana",tier:"Rare",emoji:"🐋",min:2,max:12,koin:90,xp:90,w:12},
- {nama:"Pari Manta",tier:"Rare",emoji:"🪼",min:3,max:15,koin:130,xp:120,w:8},
- {nama:"Naga Laut",tier:"Epic",emoji:"🐉",min:5,max:25,koin:300,xp:280,w:4},
- {nama:"Hiu Paus",tier:"Legendary",emoji:"🦈",min:10,max:45,koin:900,xp:800,w:1.5},
- {nama:"Leviathan",tier:"Legendary",emoji:"🐙",min:20,max:80,koin:2000,xp:1500,w:0.8},
-];
-let user=JSON.parse(localStorage.getItem("mancingUser")||"null");
-let players=[{nama:"Azzam Zikri",x:340,y:180,emoji:"🧑‍🌾",lv:28},{nama:"Mutiara",x:420,y:420,emoji:"👩",lv:12},{nama:"Pak Bayu",x:560,y:260,emoji:"👨‍🦰",lv:99}];
-let me={x:320,y:300,dx:0,dy:0};
-let inv=[], star=290, gem=310, xp=2002, xpMax=2560, lv=8, nama="Dysen", myID="FISH-DEMO", rodIdx=2;
-let casting=false, barVal=50, barTimer=null, curFish=null, zoneL=35, zoneW=30;
-
-function save(){ localStorage.setItem("mancingUser",JSON.stringify({nama,myID,inv,star,gem,xp,xpMax,lv,rodIdx})); }
-function login(){
-  let id=document.getElementById("inputID").value.trim().toUpperCase();
-  let nm=document.getElementById("inputNama").value.trim()||"Pemancing";
-  if(id.length<6){ alert("ID dari bot WA dulu! Ketik .mancing id di bot"); return; }
-  myID=id; nama=nm;
-  if(user && user.myID===id){ Object.assign({nama,myID},user); inv=user.inv; star=user.star; gem=user.gem; xp=user.xp; xpMax=user.xpMax; lv=user.lv; rodIdx=user.rodIdx; }
-  startGame();
-}
-function demo(){ myID="FISH-DEMO"; nama="Dysen"; startGame(); }
-function startGame(){
-  document.getElementById("login").style.display="none";
-  document.getElementById("game").style.display="block";
-  save(); renderHUD(); renderInv(); draw();
-  toast("Selamat datang di Pulau, "+nama+"! ID: "+myID);
-  setInterval(()=>{ players.forEach(p=>{ p.x+= (Math.random()-0.5)*6; p.y+=(Math.random()-0.5)*6; }); },800);
-  setInterval(()=>{ let f=FISH[Math.floor(Math.random()*FISH.length)]; document.getElementById("feed").textContent=`🏆 ${players[Math.floor(Math.random()*players.length)].nama} dapat ${f.tier} ${f.nama} · ${(Math.random()*20+1).toFixed(1)} kg`; },9000);
-}
-function renderHUD(){
-  document.getElementById("pNama").textContent=nama;
-  document.getElementById("pLv").textContent=lv;
-  document.getElementById("pXP").textContent=xp;
-  document.getElementById("pXPMax").textContent=xpMax;
-  document.getElementById("xpBar").style.width=(xp/xpMax*100)+"%";
-  document.getElementById("pStar").textContent=star;
-  document.getElementById("pGem").textContent=gem;
-  document.getElementById("pTitle").textContent=RODS[rodIdx].nama;
-  document.getElementById("buffs").innerHTML=`<i>🎣 ${RODS[rodIdx].nama}</i><i>⭐ +${RODS[rodIdx].power}%</i><i>🐟 ${inv.length}/45</i>`;
-}
-function renderInv(){
-  let el=document.getElementById("inv");
-  el.innerHTML="";
-  for(let i=0;i<5;i++){ let f=inv[i]; el.innerHTML+=`<div class="slot ${i===0?'active':''}">${f?f.emoji:""}<span>${f?(f.berat).toFixed(2):""}</span></div>`; }
-  el.innerHTML+=`<div class="slot" onclick="openMenu()" style="font-size:20px">🎒<span>${inv.length}/45</span></div>`;
-}
-function toast(t){ let e=document.getElementById("toast"); e.textContent=t; e.style.display="block"; setTimeout(()=>e.style.display="none",3000); }
-function openMenu(){
-  let rodsHtml=RODS.map((r,i)=>`<div class="row ${lv>=r.lv?'':'lock'}"><span><b>${r.icon} ${r.nama}</b><br><small>${r.bonus} • Butuh Lv ${r.lv}</small></span><button onclick="pilihJoran(${i})" style="padding:7px 10px;border-radius:8px;border:none;background:${i===rodIdx?'#22c55e':'#111'};color:#fff;font-weight:700">${i===rodIdx?'Dipakai':lv>=r.lv?'Pakai':'🔒 Lv '+r.lv}</button></div>`).join("");
-  let fishHtml=inv.length?inv.map(f=>`<div class="row"><span><b>${f.emoji} ${f.nama}</b><br><small class="${f.tier}">${f.tier} • ${f.berat} kg</small></span><b>+${f.koin} 🪙</b></div>`).join(""):"<p style='text-align:center;color:#666;padding:12px'>Tas masih kosong, mancing dulu!</p>";
-  showModal(`<h2>🎒 Tas & Joran</h2><div class="tabs"><button class="on" onclick="openMenu()">Joran</button><button onclick="openTas()">Ikan (${inv.length})</button><button onclick="openJual()">Jual Semua</button></div><div class="list">${rodsHtml}</div><button onclick="closeModal()">Tutup</button>`);
-  window._fishHtml=fishHtml;
-}
-function openTas(){ showModal(`<h2>🐟 Koleksi Ikan</h2><div class="list">${window._fishHtml||"Kosong"}</div><button onclick="closeModal()">Tutup</button><button onclick="openJual()" style="background:#22c55e">Jual Semua Ikan</button>`); }
-function openJual(){ let total=inv.reduce((a,f)=>a+f.koin,0); if(!total){ toast("Gak ada ikan buat dijual"); return; } star+=total; inv=[]; save(); renderHUD(); renderInv(); showModal(`<div style="font-size:48px">💰</div><h2>Terjual!</h2><p>Kamu dapet <b>+${total} ⭐</b></p><button onclick="closeModal()">Mantap!</button>`); }
-function pilihJoran(i){ if(lv<RODS[i].lv){ toast("Joran ini kebuka di Lv "+RODS[i].lv); return; } rodIdx=i; save(); renderHUD(); toast("Joran diganti jadi "+RODS[i].nama); closeModal(); }
-function showModal(html){ document.getElementById("modalBox").innerHTML=html; document.getElementById("modal").style.display="flex"; }
-function closeModal(){ document.getElementById("modal").style.display="none"; }
-
-function mulaiMancing(){
-  if(casting) return; casting=true;
-  document.getElementById("btnFish").disabled=true;
-  document.getElementById("btnFish").innerHTML="⏳<br>Lempar...";
-  toast("Joran dilempar... tunggu ikan nyangkut!");
-  setTimeout(()=>{
-    let power=RODS[rodIdx].power;
-    let pool=[]; FISH.forEach(f=>{ let w=f.w; if(f.tier==="Rare") w*=1+power/100; if(f.tier==="Epic") w*=1+power/150; if(f.tier==="Legendary") w*=1+power/200; pool.push({f,w}); });
-    let total=pool.reduce((a,b)=>a+b.w,0); let r=Math.random()*total; curFish=pool[0].f;
-    for(let p of pool){ if(r<p.w){curFish=p.f;break;} r-=p.w; }
-    document.getElementById("barGame").style.display="flex";
-    document.getElementById("barText").textContent="Ada yang nyangkut! Jaga bar di zona kuning!";
-    barVal=50; zoneL=30+Math.random()*20;
-    document.getElementById("barZone").style.left=zoneL+"%";
-    clearInterval(barTimer);
-    barTimer=setInterval(()=>{
-      barVal-=1.2;
-      if(barVal<0) barVal=0;
-      document.getElementById("barFill").style.width=barVal+"%";
-      if(barVal<=0){ gagalMancing(); }
-      if(barVal>=zoneL && barVal<=zoneL+zoneW){ /* aman */ }
-    },80);
-    setTimeout(()=>{ if(casting){ selesaiMancing(); } },6000);
-  },1200+Math.random()*1000);
-}
-function tapBar(){ barVal=Math.min(100,barVal+9); document.getElementById("barFill").style.width=barVal+"%"; }
-function gagalMancing(){
-  clearInterval(barTimer); casting=false;
-  document.getElementById("barGame").style.display="none";
-  document.getElementById("btnFish").disabled=false; document.getElementById("btnFish").innerHTML="🎣<br>Joran";
-  toast("Yah, ikannya lepas! 🥲"); 
-}
-function selesaiMancing(){
-  clearInterval(barTimer); casting=false;
-  document.getElementById("barGame").style.display="none";
-  document.getElementById("btnFish").disabled=false; document.getElementById("btnFish").innerHTML="🎣<br>Joran";
-  let berat=curFish.min+Math.random()*(curFish.max-curFish.min);
-  let bonus=1+RODS[rodIdx].power/200;
-  berat=berat*bonus;
-  let ikan={...curFish,berat:berat,koin:Math.round(curFish.koin*bonus)};
-  inv.unshift(ikan); if(inv.length>45) inv.pop();
-  xp+=curFish.xp; star+=5;
-  let naik=false;
-  while(xp>=xpMax){ xp-=xpMax; lv++; xpMax=Math.round(xpMax*1.4); naik=true; let unlocked=RODS.find(r=>r.lv===lv); if(unlocked){ setTimeout(()=>toast("🎉 Joran baru kebuka: "+unlocked.nama),600); } }
-  save(); renderHUD(); renderInv();
-  showModal(`<div class="fish-big">${ikan.emoji}</div><span class="tier ${ikan.tier}">${ikan.tier.toUpperCase()}</span><h2>${ikan.nama}</h2><p style="font-size:18px;font-weight:800">${berat.toFixed(2)} kg</p><p style="color:#666;font-size:13px">+${curFish.xp} XP • +${ikan.koin} ⭐ • Joran: ${RODS[rodIdx].nama}</p>${naik?`<p style="color:#16a34a;font-weight:800">🎉 NAIK LEVEL! Sekarang Lv ${lv}</p>`:""}<button onclick="closeModal()">Simpan ke Tas 🎒</button>`);
-}
-
-// Joystick
-let joy=document.getElementById("joy"), stick=document.getElementById("stick"), dragging=false;
-function moveJoy(e){ let r=joy.getBoundingClientRect(); let cx=e.touches?e.touches[0].clientX:e.clientX; let cy=e.touches?e.touches[0].clientY:e.clientY; let dx=cx-(r.left+r.width/2), dy=cy-(r.top+r.height/2); let d=Math.sqrt(dx*dx+dy*dy); let max=26; if(d>max){dx=dx/d*max; dy=dy/d*max;} stick.style.left=(26+dx)+"px"; stick.style.top=(26+dy)+"px"; me.dx=dx/max*2.2; me.dy=dy/max*2.2; }
-joy.addEventListener("touchstart",e=>{dragging=true; moveJoy(e)}); joy.addEventListener("touchmove",e=>{if(dragging) moveJoy(e)}); joy.addEventListener("touchend",()=>{dragging=false; stick.style.left="26px"; stick.style.top="26px"; me.dx=0; me.dy=0;});
-joy.addEventListener("mousedown",e=>{dragging=true; moveJoy(e)}); window.addEventListener("mousemove",e=>{if(dragging) moveJoy(e)}); window.addEventListener("mouseup",()=>{dragging=false; stick.style.left="26px"; stick.style.top="26px"; me.dx=0; me.dy=0;});
-
-// Canvas gambar pulau pixel
-const cv=document.getElementById("cv"), ctx=cv.getContext("2d");
-function draw(){
-  cv.width=innerWidth; cv.height=innerHeight;
-  ctx.fillStyle="#f6d67a"; ctx.fillRect(0,0,cv.width,cv.height);
-  ctx.fillStyle="#7ec850"; ctx.fillRect(40,60,cv.width-80,cv.height-140);
-  ctx.fillStyle="#c9a86a"; ctx.fillRect(60,120,cv.width-120,90);
-  ctx.fillStyle="#38bdf8"; ctx.fillRect(0,cv.height-90,cv.width,90); ctx.fillRect(0,0,cv.width,28);
-  ctx.font="28px serif"; ctx.fillText("🌴",80,cv.height-140); ctx.fillText("🌴",cv.width-110,180); ctx.fillText("🔥",90,cv.height-110); ctx.fillText("⛲",cv.width/2,cv.height/2-20); ctx.fillText("🪑",180,220);
-  players.forEach(p=>{ ctx.font="28px serif"; ctx.fillText(p.emoji,p.x,p.y); ctx.font="11px sans-serif"; ctx.fillStyle="#000"; ctx.fillText(p.nama,p.x-10,p.y+18); });
-  ctx.font="32px serif"; ctx.fillText("🧑",me.x,me.y); ctx.font="11px sans-serif"; ctx.fillStyle="#fff"; ctx.strokeStyle="#000"; ctx.fillText(nama+" Lv"+lv,me.x-10,me.y-8);
-  me.x+=me.dx; me.y+=me.dy; me.x=Math.max(30,Math.min(cv.width-40,me.x)); me.y=Math.max(60,Math.min(cv.height-120,me.y));
-  requestAnimationFrame(draw);
-}
-setInterval(()=>{ let d=new Date(); document.getElementById("jam").textContent=d.toLocaleDateString("id-ID",{weekday:"short",day:"numeric",month:"short"})+" · "+d.toLocaleTimeString("id-ID",{hour:"2-digit",minute:"2-digit"})+" WITA"; },1000);
-if(user){ document.getElementById("inputID").value=user.myID; document.getElementById("inputNama").value=user.nama; }
-</script>
+<script src="hady.js"></script>
 </body>
-  </html>
+                                                                                                                                                                                                                                                                                            </html>
