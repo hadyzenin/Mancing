@@ -16,11 +16,11 @@
     <p class="subtitle">Game Mancing Online Bareng Temen</p>
 
     <label>Nama Pemancing</label>
-    <input id="inputNama" placeholder="Contoh: hady" value="hady" maxlength="14">
+    <input id="inputNama" placeholder="Contoh: hady" value="hady" maxlength="14" autocomplete="off">
 
     <label>ID Akun (Buat login di HP lain)</label>
     <div style="display:flex;gap:8px">
-      <input id="inputID" placeholder="FISH-XXXXXX" style="flex:1">
+      <input id="inputID" placeholder="FISH-XXXXXX" style="flex:1" autocomplete="off">
       <button class="btn-small" onclick="buatIDBaru()">Buat ID</button>
     </div>
 
@@ -61,7 +61,6 @@
 
   <div class="location"><b>Pulau Tengah Laut</b><br><span id="jam">Sel, 24 Nov · 16:39 WITA</span></div>
 
-  <!-- BAR MANCING -->
   <div id="barGame" style="display:none" onclick="tapBar()">
     <div class="bar-wrap">
       <div class="bar-zone" id="barZone"></div>
@@ -82,11 +81,10 @@
   </div>
 </div>
 
-<!-- MODAL -->
 <div id="modal" style="display:none">
   <div class="modal-card" id="modalBox"></div>
 </div>
 
 <script src="hady.js"></script>
 </body>
-</html>
+    </html>
