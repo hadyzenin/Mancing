@@ -19,7 +19,6 @@ const FISH = [
   { nama: "Leviathan", tier: "Legendary", emoji: "🐙", min: 20,   max: 80,   yen: 20000,xp: 1500,w: 0.8 },
 ];
 
-// ===== STATE - TANPA NPC, CUMA PLAYER ASLI =====
 let players = [];
 let me = { x: 320, y: 300, dx: 0, dy: 0, dir: 1, jalan: 0, mancing: false };
 let inv = [], yen = 500, xp = 0, xpMax = 100, lv = 1, nama = "hady", myID = "FISH-DEMO", rodIdx = 0, ownedRods = [0];
@@ -82,7 +81,6 @@ async function login(){
       inv=d.inv||[]; yen=d.yen ?? 500; xp=d.xp||0; xpMax=d.xpMax||100; lv=d.lv||1; rodIdx=d.rodIdx||0; ownedRods=d.ownedRods||[0];
     }
   }catch(e){
-    console.log("Server offline, pake lokal");
     let lama = JSON.parse(localStorage.getItem(getKey(id))||"null");
     if(lama){ inv=lama.inv||[]; yen=lama.yen ?? 500; xp=lama.xp||0; xpMax=lama.xpMax||100; lv=lama.lv||1; rodIdx=lama.rodIdx||0; ownedRods=lama.ownedRods||[0]; }
   }
@@ -112,7 +110,6 @@ function renderInv(){
 }
 function toast(t){ let e=document.getElementById("toast"); e.textContent=t; e.style.display="block"; setTimeout(()=>e.style.display="none",3000); }
 
-// ===== TOKO JORAN PAKE YEN =====
 function openMenu(){
   let rodsHtml=RODS.map((r,i)=>{
     let punya = ownedRods.includes(i);
@@ -193,13 +190,11 @@ function selesaiMancing(){
   showModal(`<div class="fish-big">${ikan.emoji}</div><span class="tier ${ikan.tier}">${ikan.tier.toUpperCase()}</span><h2>${ikan.nama}</h2><p style="font-size:18px;font-weight:800">${berat.toFixed(2)} kg</p><p style="color:#666;font-size:13px">+${curFish.xp} XP • 💴 ${ikan.yen.toLocaleString()} Yen • Joran: ${RODS[rodIdx].nama}</p>${naik?`<p style="color:#16a34a;font-weight:800">🎉 NAIK LEVEL! Sekarang Lv ${lv}</p>`:""}<button onclick="closeModal()">Simpan ke Tas 🎒</button>`);
 }
 
-// ===== JOYSTICK =====
 let joy=document.getElementById("joy"), stick=document.getElementById("stick"), dragging=false;
 function moveJoy(e){ let r=joy.getBoundingClientRect(); let cx=e.touches?e.touches[0].clientX:e.clientX; let cy=e.touches?e.touches[0].clientY:e.clientY; let dx=cx-(r.left+r.width/2), dy=cy-(r.top+r.height/2); let d=Math.sqrt(dx*dx+dy*dy); let max=26; if(d>max){dx=dx/d*max; dy=dy/d*max;} stick.style.left=(26+dx)+"px"; stick.style.top=(26+dy)+"px"; me.dx=dx/max*2.2; me.dy=dy/max*2.2; if(dx!==0) me.dir = dx>0?1:-1; }
 joy.addEventListener("touchstart",e=>{dragging=true; moveJoy(e)}); joy.addEventListener("touchmove",e=>{if(dragging) moveJoy(e)}); joy.addEventListener("touchend",()=>{dragging=false; stick.style.left="26px"; stick.style.top="26px"; me.dx=0; me.dy=0;});
 joy.addEventListener("mousedown",e=>{dragging=true; moveJoy(e)}); window.addEventListener("mousemove",e=>{if(dragging) moveJoy(e)}); window.addEventListener("mouseup",()=>{dragging=false; stick.style.left="26px"; stick.style.top="26px"; me.dx=0; me.dy=0;});
 
-// ===== GRAFIK - KARAKTER PIXEL + ANIMASI =====
 const cv=document.getElementById("cv"), ctx=cv.getContext("2d");
 function gambarKarakter(x, y, namaP, dir, jalan, mancing, isMe){
   let bob = Math.sin(animTime*4 + x)*1.5;
@@ -279,21 +274,12 @@ function draw(){
     if(d.y>cv.height) d.y=0;
     ctx.font="12px serif"; ctx.fillText("🍃", d.x % cv.width, d.y);
   });
-  // PLAYER LAIN - PAKAI INTERPOLASI BIAR GAK TELEPORT
+  // PLAYER LAIN - LERP HALUS 0.18, GAK LONCAT
   players.forEach(p=>{
+    p.x += ((p.tx ?? p.x) - p.x) * 0.18;
+    p.y += ((p.ty ?? p.y) - p.y) * 0.18;
     let dx = (p.tx ?? p.x) - p.x;
-    let dy = (p.ty ?? p.y) - p.y;
-    let jarak = Math.sqrt(dx*dx + dy*dy);
-    if(jarak > 1){
-      let speed = Math.min(4, 1.5 + jarak * 0.12);
-      p.x += dx / jarak * speed;
-      p.y += dy / jarak * speed;
-      p.jalan = 1;
-      if(dx !== 0) p.dir = dx > 0 ? 1 : -1;
-    } else {
-      p.jalan = 0;
-    }
-    if(jarak > 120){ p.x = p.tx; p.y = p.ty; }
+    if(Math.abs(dx) > 2){ p.jalan = 1; p.dir = dx > 0 ? 1 : -1; } else { p.jalan = 0; }
     gambarKarakter(p.x, p.y, p.nama, p.dir || 1, p.jalan, false, false);
   });
   let jalan = Math.abs(me.dx)+Math.abs(me.dy);
@@ -311,27 +297,29 @@ if(lastID){
   let d = JSON.parse(localStorage.getItem(getKey(lastID)) || "null");
   if(d) document.getElementById("inputNama").value = d.nama;
 }
-// KIRIM POSISI TIAP 120ms - BIAR GAK DELAY
+// KIRIM POSISI NORMALISASI 0-1000 BIAR SAMA DI SEMUA HP
 setInterval(async ()=>{
   if(!myID || myID==="FISH-DEMO") return;
-  try{ await apiPost("/api/posisi", {id: myID, nama, x: Math.round(me.x), y: Math.round(me.y), lv}); }catch(e){}
-}, 120);
-// AMBIL POSISI TEMEN TIAP 250ms + SIMPAN SEBAGAI TARGET
+  let nx = Math.round(me.x / innerWidth * 1000);
+  let ny = Math.round(me.y / innerHeight * 1000);
+  try{ await apiPost("/api/posisi", {id: myID, nama, x: nx, y: ny, lv}); }catch(e){}
+}, 150);
+// AMBIL POSISI TEMEN - JANGAN LANGSUNG HAPUS, TUNGGU 3 DETIK
 setInterval(async ()=>{
   try{
     let r = await fetch("/api/online").then(r=>r.json());
     let baru = r.players.filter(p=>p.id!==myID);
+    let sekarang = Date.now();
     baru.forEach(p=>{
+      let px = p.x / 1000 * innerWidth;
+      let py = p.y / 1000 * innerHeight;
       let lama = players.find(q=>q.id===p.id);
       if(lama){
-        lama.tx = p.x;
-        lama.ty = p.y;
-        lama.nama = p.nama;
-        lama.lv = p.lv;
+        lama.tx = px; lama.ty = py; lama.nama = p.nama; lama.lv = p.lv; lama.lastSeen = sekarang;
       } else {
-        players.push({id:p.id, nama:p.nama, lv:p.lv, x:p.x, y:p.y, tx:p.x, ty:p.y, dir:1, jalan:0});
+        players.push({id:p.id, nama:p.nama, lv:p.lv, x:px, y:py, tx:px, ty:py, dir:1, jalan:0, lastSeen: sekarang});
       }
     });
-    players = players.filter(p=> baru.some(q=>q.id===p.id));
+    players = players.filter(p=> sekarang - (p.lastSeen||0) < 3000);
   }catch(e){}
-}, 250);
+}, 300);
