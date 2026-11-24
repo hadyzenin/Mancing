@@ -5,7 +5,14 @@ const app = express();
 
 app.use(cors());
 app.use(express.json({ limit: "2mb" }));
-app.use(express.static(path.join(__dirname, ".")));
+
+// Biar hady.css sama hady.js ke-load
+app.use(express.static(__dirname));
+
+// Buka domain utama -> kasih hady.html
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "hady.html"));
+});
 
 const players = new Map();
 const online = new Map();
@@ -20,7 +27,7 @@ app.post("/api/buat-id", (req, res) => {
 
 app.post("/api/login", (req, res) => {
   let { id, nama } = req.body;
-  if (!id) return res.json({ success: false, message: "ID kosong" });
+  if (!id) return res.json({ success: false });
   id = id.trim().toUpperCase();
   if (!id.startsWith("FISH-")) id = "FISH-" + id;
   let data = players.get(id);
@@ -59,17 +66,4 @@ app.get("/api/leaderboard", (req, res) => {
   res.json({ success: true, leaderboard: list });
 });
 
-let feed = [];
-app.post("/api/feed", (req, res) => {
-  const { nama, ikan, tier, berat } = req.body;
-  feed.unshift({ nama, ikan, tier, berat, waktu: Date.now() });
-  feed = feed.slice(0, 10);
-  res.json({ success: true });
-});
-app.get("/api/feed", (req, res) => { res.json({ success: true, feed }); });
-
-app.get("/", (req, res) => { res.sendFile(path.join(__dirname, "hady.html")); });
-
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log("Mancing jalan di port " + PORT));
 module.exports = app;
