@@ -1,6 +1,15 @@
 {
-  "rewrites": [
-    { "source": "/api/:path*", "destination": "/index.js" },
-    { "source": "/(.*)", "destination": "/index.js" }
+  "version": 2,
+  "builds": [
+    { "src": "index.js", "use": "@vercel/node" },
+    { "src": "hady.html", "use": "@vercel/static" },
+    { "src": "hady.css", "use": "@vercel/static" },
+    { "src": "hady.js", "use": "@vercel/static" }
+  ],
+  "routes": [
+    { "src": "/api/(.*)", "dest": "/index.js" },
+    { "src": "/", "dest": "/index.js" },
+    { "src": "/hady.css", "dest": "/hady.css" },
+    { "src": "/hady.js", "dest": "/hady.js" }
   ]
 }
