@@ -49,9 +49,7 @@ app.post("/api/posisi", (req, res) => {
   const { id, nama, x, y, lv } = req.body;
   if (!id) return res.json({ success: false });
   online.set(id, { nama, x, y, lv, lastSeen: Date.now() });
-  // YANG BARU - dari 15 detik jadi 5 detik, biar yang offline cepet kehapus
-// tapi jangan terlalu cepet biar gak kedip
-for (const [k, v] of online) { if (Date.now() - v.lastSeen > 5000) online.delete(k); }
+  for (const [k, v] of online) { if (Date.now() - v.lastSeen > 5000) online.delete(k); }
   res.json({ success: true });
 });
 
