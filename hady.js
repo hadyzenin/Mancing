@@ -18,27 +18,26 @@ const FISH = [
   { nama: "Hiu Paus",  tier: "Legendary", emoji: "🦈", min: 10,   max: 45,   yen: 9000, xp: 800, w: 1.5 },
   { nama: "Leviathan", tier: "Legendary", emoji: "🐙", min: 20,   max: 80,   yen: 20000,xp: 1500,w: 0.8 },
 ];
-
 const WORLD_W = 1200, WORLD_H = 1800;
 const ZOOM = 2.0;
 let camX = 0, camY = 0;
 const TOKO = { x: 600, y: 340, w: 170, h: 120 };
-// === BATAS DARAT - KUNCI KERAS, GAK BOLEH KELUAR ===
 const DARAT = { x1: 100, x2: 1100, y1: 20, y2: 1700 };
-
+// KOLAM TENGAH - danau buat mancing di tengah map
+const KOLAM = { cx: 600, cy: 1150, rx: 230, ry: 160 };
 let players = [];
 let me = { x: 600, y: WORLD_H-100, dx: 0, dy: 0, dir: 1, jalan: 0, mancing: false, lastFish: "", lastFishAt: 0, lastFishNama: "", chatText: "", chatAt: 0 };
 let inv = [], yen = 500, xp = 0, xpMax = 100, lv = 1, nama = "hady", myID = "FISH-DEMO", rodIdx = 0, ownedRods = [0];
 let casting = false, curFish = null, zoneL = 35;
 let animTime = 0, ripples = [], daun = [];
 for(let i=0;i<30;i++) daun.push({x: 150+Math.random()*(WORLD_W-300), y: Math.random()*WORLD_H, s: Math.random()*2+1, speed: Math.random()*0.5+0.3});
-
-// === IKAN LAUT - DIKUNCI CUMA DI AIR, GAK BOLEH NYEBRANG DARAT ===
 let ikanLaut = [];
 for(let i=0;i<6;i++) ikanLaut.push({ zona: "kiri", x: 30+Math.random()*50, y: 300+Math.random()*1200, speed: 0.4+Math.random()*0.5, dir: 1, warna: ["#f97316","#38bdf8","#facc15","#f472b6","#a78bfa"][i%5], ukuran: 0.7+Math.random()*0.5, fase: Math.random()*6 });
 for(let i=0;i<6;i++) ikanLaut.push({ zona: "kanan", x: 1120+Math.random()*50, y: 300+Math.random()*1200, speed: 0.4+Math.random()*0.5, dir: -1, warna: ["#f97316","#38bdf8","#facc15","#f472b6"][i%4], ukuran: 0.7+Math.random()*0.5, fase: Math.random()*6 });
 for(let i=0;i<6;i++) ikanLaut.push({ zona: "bawah", x: 150+Math.random()*900, y: 1730+Math.random()*40, speed: 0.5+Math.random()*0.5, dir: Math.random()<0.5?1:-1, warna: ["#f97316","#38bdf8","#facc15","#f472b6"][i%4], ukuran: 0.8+Math.random()*0.5, fase: Math.random()*6 });
-
+// Ikan di kolam tengah - muter di dalam kolam aja
+let ikanKolam = [];
+for(let i=0;i<5;i++) ikanKolam.push({ a: Math.random()*Math.PI*2, r: 60+Math.random()*120, speed: 0.008+Math.random()*0.008, warna: ["#fb923c","#38bdf8","#f472b6","#facc15"][i%4], ukuran: 0.7+Math.random()*0.4, fase: Math.random()*6 });
 let cooldownUntil = 0, cooldownTimer = null;
 function sisaCooldown(){ return Math.max(0, cooldownUntil - Date.now()); }
 function mulaiCooldown(){
@@ -92,25 +91,46 @@ function tambahChatKeList(namaPengirim, teks, isMe){
   if(!chatOpen) document.getElementById("chatBadge").style.display = "block";
 }
 let tarikPos = 50, tarikDir = 1, tarikRaf = null, tarikTimeout = null, tarikKecepatan = 2, tarikZonaW = 30, tarikSisaWaktu = 8000, tarikWaktuMulai = 0, tarikLastFrame = 0, tarikBarEl = null, tarikIkanEl = null, tarikTimerEl = null;
-
-// === BATAS MANCING - PAS DI GARIS PINGGIR DARAT ===
+// === KOLAM + LAUT ===
+function jarakKolam(x, y){
+  let dx = (x - KOLAM.cx) / KOLAM.rx;
+  let dy = (y - KOLAM.cy) / KOLAM.ry;
+  return Math.sqrt(dx*dx + dy*dy);
+}
+function diDalamKolam(x, y){ return jarakKolam(x, y) < 1; }
+function diPinggirKolam(){
+  let d = jarakKolam(me.x, me.y);
+  return d >= 0.92 && d <= 1.18;
+}
 function lagiDiAir(){
   let diBawah = me.y >= WORLD_H-108 && me.y <= WORLD_H-92;
   let diKiri  = me.x >= 92 && me.x <= 108 && me.y > 160;
   let diKanan = me.x >= WORLD_W-108 && me.x <= WORLD_W-92 && me.y > 160;
-  return diBawah || diKiri || diKanan;
+  return diBawah || diKiri || diKanan || diPinggirKolam();
 }
 function posisiRiak(){
+  if(diPinggirKolam()) return { x: KOLAM.cx + (me.x - KOLAM.cx)*0.7, y: KOLAM.cy + (me.y - KOLAM.cy)*0.7 };
   if(me.y >= WORLD_H-112) return { x: me.x + 10, y: WORLD_H-50 };
   if(me.x <= 112) return { x: 50, y: me.y + 20 };
   if(me.x >= WORLD_W-112) return { x: WORLD_W-50, y: me.y + 20 };
   return { x: me.x + 30, y: me.y + 40 };
 }
 function lagiDiToko(){ return Math.abs(me.x - TOKO.x) < 110 && Math.abs(me.y - (TOKO.y + TOKO.h)) < 110; }
-// === KUNCI JALAN - DIPANGGIL TIAP FRAME, GAK BISA TEMBUS ===
 function kunciDiDarat(){
   me.x = Math.max(DARAT.x1, Math.min(DARAT.x2, me.x));
   me.y = Math.max(DARAT.y1, Math.min(DARAT.y2, me.y));
+  // Dorong keluar dari kolam tengah kalau kepleset masuk
+  if(diDalamKolam(me.x, me.y)){
+    let dx = me.x - KOLAM.cx, dy = me.y - KOLAM.cy;
+    let len = Math.sqrt(dx*dx + dy*dy) || 1;
+    let nx = dx/len, ny = dy/len;
+    // Cari titik di pinggir kolam ke arah luar
+    let t = 1.06;
+    me.x = KOLAM.cx + nx * KOLAM.rx * t;
+    me.y = KOLAM.cy + ny * KOLAM.ry * t;
+    me.x = Math.max(DARAT.x1, Math.min(DARAT.x2, me.x));
+    me.y = Math.max(DARAT.y1, Math.min(DARAT.y2, me.y));
+  }
 }
 function updateTombolAksi(){
   let btn = document.getElementById("btnFish");
@@ -187,7 +207,7 @@ function startGame(){
   kunciDiDarat();
   camX = me.x - (innerWidth/2)/ZOOM; camY = me.y - (innerHeight/2)/ZOOM;
   save(); renderHUD(); renderInv(); draw();
-  toast("Jalan ke atas buat ke Toko! 🏪");
+  toast("Ada kolam di tengah! Bisa mancing di sana juga 🎣");
   document.getElementById("chatInput").addEventListener("keydown", e=>{ if(e.key==="Enter") kirimChat(); });
   let gameEl = document.getElementById("game");
   gameEl.addEventListener("click", (e)=>{
@@ -264,7 +284,7 @@ function mulaiMancing(){
   if(casting) return;
   if(sisaCooldown() > 0){ toast(`⏳ Tunggu ${Math.ceil(sisaCooldown()/1000)} detik lagi...`); return; }
   if(lagiDiToko()){ openToko("jual"); return; }
-  if(!lagiDiAir()){ toast("🚫 Masih di darat! Kakimu harus nyemplung ke air dulu 🌊"); return; }
+  if(!lagiDiAir()){ toast("🚫 Cari pinggir air / kolam dulu! 🌊"); return; }
   casting=true; me.mancing=true;
   document.getElementById("btnFish").disabled=true;
   document.getElementById("btnFish").innerHTML="⏳<br>Lempar...";
@@ -445,112 +465,187 @@ function gambarKarakter(x, y, namaP, dir, jalan, mancing, isMe, fishEmoji, fishN
   }
   ctx.font="bold 11px sans-serif"; ctx.textAlign="center"; ctx.fillStyle="#fff"; ctx.strokeStyle="rgba(0,0,0,0.7)"; ctx.lineWidth=3; ctx.strokeText(namaP, x, y-36); ctx.fillText(namaP, x, y-36); ctx.textAlign="left";
 }
-
-// === MAP BARU - FIX TOTAL: KOTAK ROUNDED, TEKSTUR RAPI, AIR EFEK ===
+// === MAP PIXEL-ART ALA FOTO 2 + KOLAM TENGAH ===
+function pseudoRandom(x, y){ let n = Math.sin(x*12.9898 + y*78.233) * 43758.5453; return n - Math.floor(n); }
 function gambarAir(){
-  let gAir = ctx.createLinearGradient(0, 0, 0, WORLD_H);
-  gAir.addColorStop(0, "#2a8ae0"); gAir.addColorStop(0.5, "#1a6fc4"); gAir.addColorStop(1, "#0d4a9e");
-  ctx.fillStyle = gAir; ctx.fillRect(0, 0, WORLD_W, WORLD_H);
-  // Ombak halus yang jalan
+  let g = ctx.createLinearGradient(0, 0, 0, WORLD_H);
+  g.addColorStop(0, "#1e7ad9"); g.addColorStop(0.5, "#1668c0"); g.addColorStop(1, "#0d4da1");
+  ctx.fillStyle = g; ctx.fillRect(0, 0, WORLD_W, WORLD_H);
+  // Tekstur ombak pixel - kotak-kotak kecil kayak di foto 2
+  for(let y=0; y<WORLD_H; y+=22){
+    for(let x=0; x<WORLD_W; x+=22){
+      let r = pseudoRandom(x, y);
+      if(r > 0.82){ ctx.fillStyle = "rgba(255,255,255,0.10)"; ctx.fillRect(x, y + Math.sin(animTime*1.5 + x*0.02)*2, 10, 4); }
+      if(r < 0.12){ ctx.fillStyle = "rgba(0,0,0,0.06)"; ctx.fillRect(x, y, 10, 4); }
+    }
+  }
+  // Garis ombak yang jalan
   for(let i=0;i<8;i++){
-    let yy = ((animTime*22 + i*230) % (WORLD_H+120)) - 60;
-    ctx.strokeStyle = "rgba(255,255,255,0.12)"; ctx.lineWidth = 2;
+    let yy = ((animTime*24 + i*230) % (WORLD_H+120)) - 60;
+    ctx.strokeStyle = "rgba(255,255,255,0.13)"; ctx.lineWidth = 2.5;
     ctx.beginPath();
-    for(let x=0;x<=WORLD_W;x+=40){
-      let waveY = yy + Math.sin(animTime*2 + x*0.012 + i)*5;
-      if(x===0) ctx.moveTo(x, waveY); else ctx.lineTo(x, waveY);
+    for(let x=0;x<=WORLD_W;x+=36){
+      let wy = yy + Math.sin(animTime*2 + x*0.013 + i)*5;
+      if(x===0) ctx.moveTo(x, wy); else ctx.lineTo(x, wy);
     }
     ctx.stroke();
   }
-  // Kilau matahari di air kanan
+  // Kilau di air kanan
   for(let i=0;i<16;i++){
-    let sx = 1140 + Math.sin(animTime*1.5 + i)*12;
-    let sy = 200 + i*100 + Math.cos(animTime + i)*8;
+    let sx = 1140 + Math.sin(animTime*1.5 + i)*10;
+    let sy = 200 + i*100 + Math.cos(animTime + i)*6;
     ctx.fillStyle = `rgba(255,255,255,${0.22 + Math.sin(animTime*3 + i)*0.12})`;
-    ctx.fillRect(sx, sy, 16, 2);
+    ctx.fillRect(sx, sy, 14, 2);
   }
 }
 function gambarBuihPantai(){
-  // Buih putih PERSIS di garis darat: kiri x=100, kanan x=1100, bawah y=1700
   let b = 5 + Math.sin(animTime*1.8)*3;
   ctx.fillStyle = "rgba(255,255,255,0.85)";
   ctx.fillRect(DARAT.x1-4, 0, 6+b, WORLD_H);
   ctx.fillRect(DARAT.x2-2, 0, 6+b, WORLD_H);
   ctx.fillRect(0, DARAT.y2-4, WORLD_W, 6+b);
-  ctx.fillStyle = "rgba(255,255,255,0.5)";
-  for(let i=0;i<20;i++){
-    let gy = (i*90 + animTime*20) % WORLD_H;
-    ctx.beginPath(); ctx.arc(DARAT.x1+2, gy, 2, 0, Math.PI*2); ctx.fill();
-    ctx.beginPath(); ctx.arc(DARAT.x2-2, gy, 2, 0, Math.PI*2); ctx.fill();
-  }
+  // Buih kolam tengah
+  ctx.strokeStyle = `rgba(255,255,255,${0.6 + Math.sin(animTime*2)*0.2})`; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.ellipse(KOLAM.cx, KOLAM.cy, KOLAM.rx+4, KOLAM.ry+4, 0, 0, Math.PI*2); ctx.stroke();
 }
 function gambarPulau(){
-  // PASIR - kotak rounded, nutupin persis DARAT (100-1100, 20-1700)
+  // PASIR - bentuk organik, ada teluk di kiri/kanan kayak foto 2
   ctx.fillStyle = "#f2d492";
-  ctx.beginPath(); ctx.roundRect(DARAT.x1, DARAT.y1, DARAT.x2-DARAT.x1, DARAT.y2-DARAT.y1, 28); ctx.fill();
-  // Tekstur pasir - bintik-bintik halus, bukan diagonal
-  ctx.fillStyle = "rgba(180,140,60,0.18)";
-  for(let i=0;i<120;i++){
-    let px = DARAT.x1 + (i*67 % (DARAT.x2-DARAT.x1));
-    let py = DARAT.y1 + (i*131 % (DARAT.y2-DARAT.y1));
-    // Cuma di pinggir pasir (di luar rumput)
-    if(px < 150 || px > 1050 || py < 90 || py > 1630) ctx.fillRect(px, py, 3, 3);
+  ctx.beginPath();
+  ctx.moveTo(DARAT.x1, 0);
+  ctx.lineTo(DARAT.x2, 0);
+  ctx.lineTo(DARAT.x2, DARAT.y2);
+  ctx.lineTo(DARAT.x1, DARAT.y2);
+  ctx.closePath(); ctx.fill();
+  // Teluk pasir - cekungan di tengah kiri & kanan
+  ctx.fillStyle = "#fbe8b8";
+  ctx.beginPath(); ctx.ellipse(DARAT.x1+60, 750, 70, 110, 0, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(DARAT.x2-60, 1050, 70, 110, 0, 0, Math.PI*2); ctx.fill();
+  // Tekstur pasir pixel
+  for(let y=DARAT.y1; y<DARAT.y2; y+=18){
+    for(let x=DARAT.x1; x<DARAT.x2; x+=18){
+      let r = pseudoRandom(x, y+99);
+      if(r > 0.92){ ctx.fillStyle = "rgba(180,140,60,0.20)"; ctx.fillRect(x, y, 6, 3); }
+      if(r < 0.08){ ctx.fillStyle = "rgba(255,255,255,0.35)"; ctx.fillRect(x, y, 6, 3); }
+    }
   }
-  // RUMPUT - kotak rounded di dalam pasir
-  ctx.fillStyle = "#5cb84a";
-  ctx.beginPath(); ctx.roundRect(DARAT.x1+50, DARAT.y1+50, DARAT.x2-DARAT.x1-100, DARAT.y2-DARAT.y1-100, 22); ctx.fill();
+  // RUMPUT - bentuk blob bergelombang, bukan kotak
+  ctx.fillStyle = "#57a844";
+  ctx.beginPath();
+  for(let a=0; a<=Math.PI*2+0.1; a+=0.2){
+    let rx = 430 + Math.sin(a*3)*28 + Math.cos(a*5)*14;
+    let ry = 760 + Math.sin(a*4)*28;
+    let px = 600 + Math.cos(a)*rx;
+    let py = 920 + Math.sin(a)*ry;
+    if(a===0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+  }
+  ctx.closePath(); ctx.fill();
   ctx.fillStyle = "#6cc957";
-  ctx.beginPath(); ctx.roundRect(DARAT.x1+70, DARAT.y1+70, 400, 500, 18); ctx.fill();
-  ctx.fillStyle = "#4aa83e";
-  ctx.beginPath(); ctx.roundRect(DARAT.x1+550, DARAT.y1+800, 350, 500, 18); ctx.fill();
-  // Tekstur rumput - rumput kecil + bunga, rapi di dalam rumput
-  for(let i=0;i<40;i++){
-    let gx = 200 + (i*73 % 800);
-    let gy = 150 + (i*97 % 1400);
-    ctx.fillStyle = "rgba(0,0,0,0.08)"; ctx.fillRect(gx, gy, 8, 2);
-    if(i%5===0){ ctx.fillStyle = i%10===0 ? "#ff6b9d" : "#facc15"; ctx.fillRect(gx, gy-4, 4, 4); }
+  ctx.beginPath();
+  for(let a=0; a<=Math.PI*2+0.1; a+=0.2){
+    let rx = 360 + Math.sin(a*3+1)*22;
+    let ry = 640 + Math.cos(a*4)*22;
+    let px = 560 + Math.cos(a)*rx;
+    let py = 880 + Math.sin(a)*ry;
+    if(a===0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
   }
-  // JALAN TANAH - lurus vertikal di tengah, bukan diagonal
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle = "#4aa83e";
+  ctx.beginPath(); ctx.ellipse(780, 1250, 210, 180, 0, 0, Math.PI*2); ctx.fill();
+  // Tekstur rumput pixel + bunga
+  for(let y=200; y<1650; y+=16){
+    for(let x=200; x<1000; x+=16){
+      if(jarakKolam(x, y) < 1.1) continue;
+      let r = pseudoRandom(x+55, y);
+      if(r > 0.93){ ctx.fillStyle = "rgba(0,0,0,0.10)"; ctx.fillRect(x, y, 5, 3); }
+      if(r > 0.97){ ctx.fillStyle = r > 0.985 ? "#ff6b9d" : "#facc15"; ctx.fillRect(x, y, 4, 4); }
+    }
+  }
+  // JALAN TANAH - dari toko ke bawah, belok ke kolam
   ctx.fillStyle = "#e8c87a";
-  ctx.fillRect(560, DARAT.y1+50, 80, DARAT.y2-DARAT.y1-100);
+  ctx.fillRect(560, 460, 80, 480);
+  ctx.fillRect(300, 1320, 600, 70);
+  ctx.fillRect(300, 940, 70, 450);
   ctx.fillStyle = "#d4b36a";
-  for(let i=0;i<24;i++) ctx.fillRect(565, 100+i*65, 70, 4);
+  for(let i=0;i<10;i++){ ctx.fillRect(565, 480+i*45, 70, 4); ctx.fillRect(320+i*55, 1325, 30, 4); }
+}
+function gambarKolam(){
+  // Pasir pinggir kolam
+  ctx.fillStyle = "#f2d492";
+  ctx.beginPath(); ctx.ellipse(KOLAM.cx, KOLAM.cy, KOLAM.rx+22, KOLAM.ry+22, 0, 0, Math.PI*2); ctx.fill();
+  // Air kolam - gradient biru muda kayak foto 2 (tosca di pinggir, biru di tengah)
+  let g = ctx.createRadialGradient(KOLAM.cx, KOLAM.cy, 20, KOLAM.cx, KOLAM.cy, KOLAM.rx);
+  g.addColorStop(0, "#2a9ad9"); g.addColorStop(0.6, "#3bb5e0"); g.addColorStop(1, "#7fe0d8");
+  ctx.fillStyle = g;
+  ctx.beginPath(); ctx.ellipse(KOLAM.cx, KOLAM.cy, KOLAM.rx, KOLAM.ry, 0, 0, Math.PI*2); ctx.fill();
+  // Riak kolam
+  for(let i=0;i<3;i++){
+    let rr = 40 + ((animTime*30 + i*50) % 160);
+    ctx.strokeStyle = `rgba(255,255,255,${0.35 - rr/500})`; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.ellipse(KOLAM.cx, KOLAM.cy, rr, rr*0.65, 0, 0, Math.PI*2); ctx.stroke();
+  }
+  // Teratai
+  ctx.fillStyle = "#2fae4f";
+  ctx.beginPath(); ctx.ellipse(KOLAM.cx-120, KOLAM.cy+60, 16, 10, 0, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(KOLAM.cx+130, KOLAM.cy-50, 14, 9, 0, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = "#ff6b9d"; ctx.beginPath(); ctx.arc(KOLAM.cx-120, KOLAM.cy+60, 4, 0, Math.PI*2); ctx.fill();
+  // Tanda mancing di kolam
+  ctx.font = "bold 11px sans-serif"; ctx.textAlign = "center";
+  ctx.fillStyle = "rgba(255,255,255,0.95)"; ctx.strokeStyle = "rgba(0,0,0,0.5)"; ctx.lineWidth = 3;
+  ctx.strokeText("🎣 KOLAM MANCING", KOLAM.cx, KOLAM.cy - KOLAM.ry - 12);
+  ctx.fillText("🎣 KOLAM MANCING", KOLAM.cx, KOLAM.cy - KOLAM.ry - 12);
+  ctx.textAlign = "left";
 }
 function gambarKarang(x, y, s, warna){
   ctx.save(); ctx.translate(x, y); ctx.scale(s, s);
-  ctx.fillStyle = "rgba(0,0,0,0.15)"; ctx.beginPath(); ctx.ellipse(0, 16, 42, 8, 0, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = "rgba(0,0,0,0.18)"; ctx.beginPath(); ctx.ellipse(0, 18, 46, 9, 0, 0, Math.PI*2); ctx.fill();
   ctx.fillStyle = warna;
-  ctx.beginPath(); ctx.roundRect(-8, -18, 16, 36, 6); ctx.fill();
-  ctx.beginPath(); ctx.roundRect(-32, -10, 24, 10, 5); ctx.fill();
-  ctx.beginPath(); ctx.roundRect(8, -10, 24, 10, 5); ctx.fill();
-  ctx.beginPath(); ctx.roundRect(-26, -26, 12, 18, 5); ctx.fill();
-  ctx.beginPath(); ctx.roundRect(14, -26, 12, 18, 5); ctx.fill();
-  ctx.fillStyle = "rgba(255,255,255,0.35)"; ctx.beginPath(); ctx.ellipse(-2, -12, 5, 10, 0, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.roundRect(-10, -22, 20, 42, 7); ctx.fill();
+  ctx.beginPath(); ctx.roundRect(-38, -12, 28, 12, 6); ctx.fill();
+  ctx.beginPath(); ctx.roundRect(10, -12, 28, 12, 6); ctx.fill();
+  ctx.beginPath(); ctx.roundRect(-30, -32, 14, 20, 6); ctx.fill();
+  ctx.beginPath(); ctx.roundRect(16, -32, 14, 20, 6); ctx.fill();
+  ctx.fillStyle = "rgba(255,255,255,0.35)"; ctx.beginPath(); ctx.ellipse(-2, -14, 6, 12, 0, 0, Math.PI*2); ctx.fill();
   ctx.restore();
+}
+function gambarRumputLaut(x, y, s){
+  ctx.strokeStyle = "#0e9a6a"; ctx.lineWidth = 4; ctx.lineCap = "round";
+  for(let i=-1;i<=1;i++){
+    ctx.beginPath(); ctx.moveTo(x+i*8, y);
+    ctx.quadraticCurveTo(x+i*8+Math.sin(animTime*2+i)*6, y-18, x+i*8+Math.sin(animTime*2+i*2)*10, y-34);
+    ctx.stroke();
+  }
 }
 function gambarPohon(x, y, s){
   let goyang = Math.sin(animTime*1.2 + x)*2.5;
   ctx.save(); ctx.translate(x, y); ctx.scale(s, s);
-  ctx.fillStyle = "rgba(0,0,0,0.15)"; ctx.beginPath(); ctx.ellipse(2, 14, 20, 5, 0, 0, Math.PI*2); ctx.fill();
-  ctx.fillStyle = "#8b5a2b";
-  ctx.beginPath(); ctx.moveTo(-5, 14); ctx.quadraticCurveTo(-2, -6, 2, -10); ctx.lineTo(8, -10); ctx.quadraticCurveTo(6, -2, 9, 14); ctx.closePath(); ctx.fill();
-  ctx.strokeStyle = "#6b4423"; ctx.lineWidth = 1.5;
-  for(let i=0;i<4;i++){ ctx.beginPath(); ctx.moveTo(-3, 8-i*5); ctx.lineTo(7, 8-i*5); ctx.stroke(); }
-  for(let i=0;i<6;i++){
-    let sudut = -Math.PI + i*(Math.PI/5) + 0.2;
-    let dx = Math.cos(sudut)*22 + goyang; let dy = Math.sin(sudut)*12 - 10;
-    ctx.strokeStyle = "#1e8a3c"; ctx.lineWidth = 4; ctx.lineCap = "round";
-    ctx.beginPath(); ctx.moveTo(4, -10); ctx.quadraticCurveTo(4+dx*0.6, -10+dy*0.6, 4+dx, -10+dy+8); ctx.stroke();
-    ctx.strokeStyle = "#2fae4f"; ctx.lineWidth = 2.5;
-    ctx.beginPath(); ctx.moveTo(4, -10); ctx.quadraticCurveTo(4+dx*0.6, -10+dy*0.6, 4+dx, -10+dy+6); ctx.stroke();
+  ctx.fillStyle = "rgba(0,0,0,0.18)"; ctx.beginPath(); ctx.ellipse(2, 16, 24, 6, 0, 0, Math.PI*2); ctx.fill();
+  // Batang - coklat gelap, beruas kayak foto 2
+  ctx.fillStyle = "#7a4a22";
+  ctx.beginPath(); ctx.moveTo(-7, 16); ctx.quadraticCurveTo(-4, -8, 0, -14); ctx.lineTo(10, -14); ctx.quadraticCurveTo(8, -2, 11, 16); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = "#5a3415"; ctx.lineWidth = 2;
+  for(let i=0;i<5;i++){ ctx.beginPath(); ctx.moveTo(-4, 10-i*6); ctx.lineTo(8, 10-i*6); ctx.stroke(); }
+  // Daun rimbun - 8 helai, 2 lapis
+  for(let lapis=0; lapis<2; lapis++){
+    for(let i=0;i<8;i++){
+      let sudut = -Math.PI + i*(Math.PI/7) + lapis*0.2;
+      let dx = Math.cos(sudut)*(26+lapis*6) + goyang;
+      let dy = Math.sin(sudut)*(13+lapis*4) - 14;
+      ctx.strokeStyle = lapis===0 ? "#145c2e" : "#1e8a3c"; ctx.lineWidth = 5; ctx.lineCap = "round";
+      ctx.beginPath(); ctx.moveTo(4, -14); ctx.quadraticCurveTo(4+dx*0.55, -14+dy*0.55, 4+dx, -14+dy+9); ctx.stroke();
+      ctx.strokeStyle = "#2fae4f"; ctx.lineWidth = 2.5;
+      ctx.beginPath(); ctx.moveTo(4, -14); ctx.quadraticCurveTo(4+dx*0.55, -14+dy*0.55, 4+dx, -14+dy+7); ctx.stroke();
+    }
   }
-  ctx.fillStyle = "#6b4423"; ctx.beginPath(); ctx.arc(0, -6, 4, 0, Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.arc(8, -6, 4, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = "#6b4423"; ctx.beginPath(); ctx.arc(-2, -8, 4.5, 0, Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.arc(8, -8, 4.5, 0, Math.PI*2); ctx.fill();
   ctx.restore();
 }
 function gambarSemak(x, y, s){
-  ctx.fillStyle = "#1e8a3c"; ctx.beginPath(); ctx.arc(x, y, 22*s, 0, Math.PI*2); ctx.fill();
-  ctx.fillStyle = "#2fae4f"; ctx.beginPath(); ctx.arc(x-8, y-6, 14*s, 0, Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.arc(x+8, y-4, 12*s, 0, Math.PI*2); ctx.fill();
-  ctx.fillStyle = "#ff6b6b"; ctx.fillRect(x-10, y-8, 4, 4); ctx.fillRect(x+6, y-10, 4, 4);
+  ctx.fillStyle = "rgba(0,0,0,0.12)"; ctx.beginPath(); ctx.ellipse(x, y+14, 26*s, 6, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = "#157a32"; ctx.beginPath(); ctx.arc(x, y, 24*s, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = "#22a344"; ctx.beginPath(); ctx.arc(x-9, y-7, 15*s, 0, Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.arc(x+9, y-5, 13*s, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = "#ff6b6b"; ctx.fillRect(x-11, y-9, 4, 4); ctx.fillRect(x+7, y-11, 4, 4);
+  ctx.fillStyle = "#facc15"; ctx.fillRect(x, y-12, 4, 4);
 }
 function gambarToko(){
   let x = TOKO.x, y = TOKO.y;
@@ -573,33 +668,45 @@ function draw(){
   targetCamX = Math.max(0, Math.min(WORLD_W - cvW/ZOOM, targetCamX)); targetCamY = Math.max(0, Math.min(WORLD_H - cvH/ZOOM, targetCamY));
   camX += (targetCamX - camX) * 0.18; camY += (targetCamY - camY) * 0.18;
   ctx.save(); ctx.scale(ZOOM, ZOOM); ctx.translate(-camX, -camY);
-  // === MAP FIX ===
-  gambarAir(); gambarPulau(); gambarBuihPantai();
-  // Karang HARUS di air: kiri x=50, kanan x=1150, bukan di darat
+  // === MAP PIXEL-ART ===
+  gambarAir();
+  gambarPulau();
+  gambarKolam();
+  gambarBuihPantai();
+  // Karang + rumput laut di air luar - kayak foto 2
   gambarKarang(50, 500, 1, "#ff8a7a");
-  gambarKarang(1150, 450, 1.1, "#e879f9");
-  gambarKarang(1150, 1200, 0.9, "#fb923c");
-  gambarKarang(50, 1300, 0.9, "#ff8a7a");
-  // Batu di air kanan bawah
-  ctx.fillStyle = "#94a3b8"; ctx.beginPath(); ctx.arc(1150, 1550, 32, 0, Math.PI*2); ctx.fill();
-  ctx.fillStyle = "#cbd5e1"; ctx.beginPath(); ctx.arc(1135, 1535, 14, 0, Math.PI*2); ctx.fill();
-  // Api unggun di darat
-  ctx.fillStyle = "#cbd5e1"; ctx.beginPath(); ctx.arc(240, 1560, 10, 0, Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.arc(280, 1560, 10, 0, Math.PI*2); ctx.fill();
-  let api2 = 1 + Math.sin(animTime*8)*0.2; ctx.font = `${Math.round(24*api2)}px serif`; ctx.fillText("🔥", 250, 1560);
-  // Lampu deket toko
-  ctx.fillStyle = "#334155"; ctx.fillRect(TOKO.x-110, TOKO.y+TOKO.h+60, 6, 42);
-  ctx.fillStyle = "#facc15"; ctx.beginPath(); ctx.arc(TOKO.x-107, TOKO.y+TOKO.h+56, 8, 0, Math.PI*2); ctx.fill();
-  ctx.fillStyle = "rgba(250,204,21,0.25)"; ctx.beginPath(); ctx.arc(TOKO.x-107, TOKO.y+TOKO.h+56, 18, 0, Math.PI*2); ctx.fill();
-  // Ikan laut - gerak cuma di jalurnya masing-masing
+  gambarKarang(1150, 450, 1.2, "#e879f9");
+  gambarKarang(1150, 1250, 1, "#fb923c");
+  gambarKarang(50, 1350, 0.9, "#ff8a7a");
+  gambarRumputLaut(40, 800, 1); gambarRumputLaut(1155, 800, 1); gambarRumputLaut(40, 1600, 1); gambarRumputLaut(1155, 1600, 1);
+  // Batu di air
+  ctx.fillStyle = "#94a3b8"; ctx.beginPath(); ctx.arc(1150, 1550, 34, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = "#cbd5e1"; ctx.beginPath(); ctx.arc(1135, 1535, 15, 0, Math.PI*2); ctx.fill();
+  // Ikan laut luar - dikunci di air
   ikanLaut.forEach(f=>{
-    if(f.zona === "kiri"){ f.y += f.speed * f.dir; if(f.y > 1550) f.dir = -1; if(f.y < 250) f.dir = 1; }
-    else if(f.zona === "kanan"){ f.y += f.speed * f.dir; if(f.y > 1550) f.dir = -1; if(f.y < 250) f.dir = 1; }
+    if(f.zona === "kiri" || f.zona === "kanan"){ f.y += f.speed * f.dir; if(f.y > 1550) f.dir = -1; if(f.y < 250) f.dir = 1; }
     else { f.x += f.speed * f.dir; if(f.x > 1080) f.dir = -1; if(f.x < 120) f.dir = 1; }
     gambarIkanHidup(f.x, f.y + Math.sin(animTime*3 + f.fase)*3, f.ukuran, f.warna, f.zona === "bawah" ? f.dir : (f.zona === "kiri" ? 1 : -1), f.fase);
   });
-  gambarPohon(200, 1550, 1.2); gambarPohon(980, 600, 1.3); gambarPohon(220, 600, 1); gambarPohon(980, 1550, 1.1); gambarPohon(200, 180, 1.1); gambarPohon(980, 180, 1.2); gambarPohon(420, 1480, 1); gambarPohon(780, 1480, 1);
-  gambarSemak(420, 520, 1.2); gambarSemak(780, 560, 1); gambarSemak(320, 1380, 0.9);
+  // Ikan kolam - muter di dalam kolam
+  ikanKolam.forEach(f=>{
+    f.a += f.speed;
+    let fx = KOLAM.cx + Math.cos(f.a) * f.r;
+    let fy = KOLAM.cy + Math.sin(f.a) * f.r * 0.65;
+    gambarIkanHidup(fx, fy, f.ukuran, f.warna, Math.cos(f.a) > 0 ? 1 : -1, f.fase);
+  });
+  // Pohon kelapa - posisi nyebar kayak foto 2, jauhin kolam & toko
+  gambarPohon(200, 220, 1.4); gambarPohon(980, 220, 1.5); gambarPohon(180, 620, 1.2); gambarPohon(1000, 700, 1.3);
+  gambarPohon(220, 1450, 1.2); gambarPohon(980, 1500, 1.3); gambarPohon(320, 820, 1.1); gambarPohon(880, 850, 1.1);
+  gambarPohon(300, 520, 1); gambarPohon(900, 560, 1);
+  gambarSemak(420, 650, 1.3); gambarSemak(780, 700, 1.1); gambarSemak(350, 1450, 1); gambarSemak(850, 1500, 1.1);
   gambarToko();
+  // Api unggun + lampu
+  ctx.fillStyle = "#cbd5e1"; ctx.beginPath(); ctx.arc(240, 1560, 10, 0, Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.arc(280, 1560, 10, 0, Math.PI*2); ctx.fill();
+  let api2 = 1 + Math.sin(animTime*8)*0.2; ctx.font = `${Math.round(26*api2)}px serif`; ctx.fillText("🔥", 250, 1560);
+  ctx.fillStyle = "#334155"; ctx.fillRect(TOKO.x-110, TOKO.y+TOKO.h+60, 6, 42);
+  ctx.fillStyle = "#facc15"; ctx.beginPath(); ctx.arc(TOKO.x-107, TOKO.y+TOKO.h+56, 8, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = "rgba(250,204,21,0.25)"; ctx.beginPath(); ctx.arc(TOKO.x-107, TOKO.y+TOKO.h+56, 18, 0, Math.PI*2); ctx.fill();
   ripples = ripples.filter(r=>r.alpha>0);
   ripples.forEach(r=>{ r.r+=1.2; r.alpha-=0.02; ctx.strokeStyle=`rgba(255,255,255,${r.alpha})`; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(r.x, r.y, r.r, 0, 0, Math.PI*2); ctx.stroke(); });
   daun.forEach(d=>{ d.y+=d.speed; d.x+=Math.sin(animTime+d.y)*0.5; if(d.y>WORLD_H) d.y=0; if(d.x>WORLD_W) d.x=0; ctx.font="12px serif"; ctx.fillText("🍃", d.x, d.y); });
@@ -609,8 +716,8 @@ function draw(){
     p.px = tx; p.py = ty; let targetX = tx + vx, targetY = ty + vy;
     p.x += (targetX - p.x) * 0.18; p.y += (targetY - p.y) * 0.18;
     if(Math.abs(targetX - p.x) > 120) p.x = targetX; if(Math.abs(targetY - p.y) > 120) p.y = targetY;
-    // Kunci pemain lain juga biar gak keliatan di laut
     p.x = Math.max(DARAT.x1, Math.min(DARAT.x2, p.x)); p.y = Math.max(DARAT.y1, Math.min(DARAT.y2, p.y));
+    if(diDalamKolam(p.x, p.y)){ let dx = p.x-KOLAM.cx, dy = p.y-KOLAM.cy, len = Math.sqrt(dx*dx+dy*dy)||1; p.x = KOLAM.cx + dx/len*KOLAM.rx*1.06; p.y = KOLAM.cy + dy/len*KOLAM.ry*1.06; }
     let dx = targetX - p.x;
     if(Math.abs(dx) > 1.5){ p.jalan = 1; p.dir = dx > 0 ? 1 : -1; } else p.jalan = 0;
     gambarKarakter(p.x, p.y, p.nama, p.dir || 1, p.jalan, p.mancing, false, p.lastFish, p.lastFishNama, p.lastFishAt, p.chatText, p.chatAt);
@@ -618,7 +725,6 @@ function draw(){
   let jalan = Math.abs(me.dx)+Math.abs(me.dy); me.jalan = jalan;
   gambarKarakter(me.x, me.y, nama, me.dir, jalan, me.mancing, true, me.lastFish, me.lastFishNama, me.lastFishAt, me.chatText, me.chatAt);
   if(!casting){ me.x+=me.dx; me.y+=me.dy; }
-  // === KUNCI KERAS - INI YANG BENERIN TEMBUS LAUT ===
   kunciDiDarat();
   if(me.x > TOKO.x-TOKO.w/2-14 && me.x < TOKO.x+TOKO.w/2+14 && me.y > TOKO.y-20 && me.y < TOKO.y+TOKO.h+10){
     if(me.y < TOKO.y+TOKO.h/2) me.y = TOKO.y-20; else me.y = TOKO.y+TOKO.h+10;
