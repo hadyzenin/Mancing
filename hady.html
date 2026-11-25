@@ -52,18 +52,21 @@
   <div class="location"><b>Pulau Tengah Laut</b><br><span id="jam">Sel, 24 Nov · 16:39 WITA</span></div>
 
   <div id="barGame" style="display:none">
-    <div style="font-size:28px" id="tantanganIkan">🐟</div>
-    <b id="tantanganNama">Ikan Nyangkut!</b>
-    <p id="tantanganInfo" style="font-size:12px;margin:4px 0">Tarik pas di zona hijau!</p>
-    <div class="bar-wrap" style="height:30px">
-      <div class="bar-zone" id="barZone"></div>
-      <div id="ikanGerak" style="position:absolute;top:0;bottom:0;width:28px;font-size:22px;text-align:center;left:50%;transition:.05s">🐟</div>
+    <div class="tarik-card">
+      <div class="tarik-ikan-besar" id="tantanganIkan">🐟</div>
+      <div class="tarik-tier" id="tantanganTier">COMMON</div>
+      <b id="tantanganNama">Ikan Nyangkut!</b>
+      <p id="tantanganInfo">Tap TARIK pas ikan di zona hijau!</p>
+      <div class="tarik-timer-wrap"><div class="tarik-timer" id="tarikTimerBar"></div></div>
+      <div class="bar-wrap tarik-bar">
+        <div class="bar-zone" id="barZone"></div>
+        <div class="bar-zone-perfect" id="barZonePerfect"></div>
+        <div id="ikanGerak">🐟</div>
+      </div>
+      <div class="tarik-label"><span>❌ Meleset = Lepas</span><span id="tarikKesulitan">Mudah</span></div>
+      <button class="btn-tarik" onclick="cobaTarik()">🎣 TARIK!</button>
+      <button class="btn-lepas" onclick="gagalMancing()">Lepas</button>
     </div>
-    <div style="display:flex;gap:8px;margin-top:10px">
-      <button onclick="cobaTarik()" style="background:#22c55e;flex:1">🎣 TARIK!</button>
-      <button onclick="gagalMancing()" style="background:#666;flex:1">Lepas</button>
-    </div>
-    <p id="tantanganSkor" style="font-size:12px;margin-top:8px">Berhasil: 0/3 • Meleset: 0/2</p>
   </div>
 
   <div id="toast" style="display:none"></div>
@@ -85,4 +88,4 @@
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
 <script src="hady.js"></script>
 </body>
-  </html>
+</html>
