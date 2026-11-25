@@ -19,33 +19,54 @@ const FISH = [
   { nama: "Leviathan", tier: "Legendary", emoji: "🐙", min: 20,   max: 80,   yen: 20000,xp: 1500,w: 0.8 },
 ];
 
+// === MAP DUNIA + KAMERA ===
+const WORLD_W = 1200, WORLD_H = 1800;
+const ZOOM = 1.55;
+let camX = 0, camY = 0;
+
 let players = [];
-let me = { x: 320, y: 300, dx: 0, dy: 0, dir: 1, jalan: 0, mancing: false, lastFish: "", lastFishAt: 0, lastFishNama: "" };
+let me = { x: 600, y: WORLD_H-130, dx: 0, dy: 0, dir: 1, jalan: 0, mancing: false, lastFish: "", lastFishAt: 0, lastFishNama: "" };
 let inv = [], yen = 500, xp = 0, xpMax = 100, lv = 1, nama = "hady", myID = "FISH-DEMO", rodIdx = 0, ownedRods = [0];
 let casting = false, curFish = null, zoneL = 35;
 let animTime = 0, ripples = [], daun = [];
-for(let i=0;i<20;i++) daun.push({x: Math.random()*1000, y: Math.random()*800, s: Math.random()*2+1, speed: Math.random()*0.5+0.3});
+for(let i=0;i<30;i++) daun.push({x: Math.random()*WORLD_W, y: Math.random()*WORLD_H, s: Math.random()*2+1, speed: Math.random()*0.5+0.3});
+
+// === COOLDOWN MANCING ===
+let cooldownUntil = 0, cooldownTimer = null;
+function sisaCooldown(){ return Math.max(0, cooldownUntil - Date.now()); }
+function mulaiCooldown(){
+  cooldownUntil = Date.now() + 3000;
+  let btn = document.getElementById("btnFish");
+  if(cooldownTimer) clearInterval(cooldownTimer);
+  cooldownTimer = setInterval(()=>{
+    let sisa = sisaCooldown();
+    if(sisa <= 0){
+      clearInterval(cooldownTimer);
+      if(btn){ btn.disabled = false; btn.innerHTML = "🎣<br>Joran"; }
+      renderHUD();
+      return;
+    }
+    if(btn){ btn.disabled = true; btn.innerHTML = `⏳<br>${Math.ceil(sisa/1000)}s`; }
+  }, 100);
+}
 
 let tarikPos = 50, tarikDir = 1, tarikRaf = null, tarikTimeout = null, tarikKecepatan = 2, tarikZonaW = 30, tarikSisaWaktu = 8000, tarikWaktuMulai = 0, tarikLastFrame = 0, tarikBarEl = null, tarikIkanEl = null, tarikTimerEl = null;
 
-// === BATAS AIR - CUMA SAMPE GARIS PUTIH PINGGIR AIR, GAK BOLEH NYEBUR ===
+// === BATAS AIR - PAKAI KOORDINAT DUNIA, BUKAN LAYAR ===
+// Air ada di pinggir dunia: atas y 0-100, bawah y WORLD_H-100 - WORLD_H, kiri x 0-100, kanan x WORLD_W-100 - WORLD_W
+// Pasir (garis putih) ada di: 100-170 dari pinggir. CUMA DI SITU BOLEH MANCING.
 function lagiDiAir(){
-  // Garis putih bawah: air mulai di innerHeight-80, jadi kaki pas di garis = y sekitar innerHeight-95 sampai innerHeight-80
-  // Kita kasih toleransi dikit: y > height-115 (udah nempel garis) dan y <= height-78 (gak boleh lewat garis)
-  let diAirBawah = me.y > innerHeight - 118 && me.y <= innerHeight - 78;
-  // Garis putih atas: air atas di y 0-24, garis di y ~50
-  let diAirAtas = me.y >= 38 && me.y < 85;
-  // Garis putih kiri: rumput mulai x=30, garis di x ~30-50
-  let diAirKiri = me.x >= 30 && me.x < 68;
-  // Garis putih kanan
-  let diAirKanan = me.x > innerWidth - 68 && me.x <= innerWidth - 30;
-  return diAirBawah || diAirAtas || diAirKiri || diAirKanan;
+  let diAtas  = me.y >= 100 && me.y <= 175;
+  let diBawah = me.y >= WORLD_H-175 && me.y <= WORLD_H-100;
+  let diKiri  = me.x >= 100 && me.x <= 175;
+  let diKanan = me.x >= WORLD_W-175 && me.x <= WORLD_W-100;
+  return diAtas || diBawah || diKiri || diKanan;
 }
 function posisiRiak(){
-  if(me.y > innerHeight - 118) return { x: me.x + 10, y: innerHeight - 60 };
-  if(me.y < 85) return { x: me.x + 10, y: 12 };
-  if(me.x < 68) return { x: 12, y: me.y + 20 };
-  if(me.x > innerWidth - 68) return { x: innerWidth - 12, y: me.y + 20 };
+  if(me.y <= 175) return { x: me.x + 10, y: 50 };
+  if(me.y >= WORLD_H-175) return { x: me.x + 10, y: WORLD_H-50 };
+  if(me.x <= 175) return { x: 50, y: me.y + 20 };
+  if(me.x >= WORLD_W-175) return { x: WORLD_W-50, y: me.y + 20 };
   return { x: me.x + 30, y: me.y + 40 };
 }
 
@@ -95,6 +116,9 @@ async function login(){
 function startGame(){
   document.getElementById("login").style.display="none";
   document.getElementById("game").style.display="block";
+  // Spawn di pasir bawah, biar langsung bisa mancing
+  me.x = WORLD_W/2; me.y = WORLD_H-135;
+  camX = me.x - (innerWidth/2)/ZOOM; camY = me.y - (innerHeight/2)/ZOOM;
   save(); renderHUD(); renderInv(); draw();
   toast("Jalan sampe garis putih pinggir air buat mancing! 🌊");
 }
@@ -107,7 +131,7 @@ function renderHUD(){
   document.getElementById("pYen").textContent=yen.toLocaleString("id-ID");
   document.getElementById("buffs").innerHTML=`<i>🎣 ${RODS[rodIdx].nama}</i><i>💴 ${yen.toLocaleString()} Yen</i>`;
   let btn = document.getElementById("btnFish");
-  if(btn && !casting){
+  if(btn && !casting && sisaCooldown() <= 0){
     if(lagiDiAir()){
       btn.style.background = "linear-gradient(180deg,#38bdf8,#0284c7)";
       btn.style.boxShadow = "0 6px 0 #0c4a6e,0 10px 20px rgba(56,189,248,.5)";
@@ -135,9 +159,7 @@ function openMenu(){
     else btn = `<button onclick="beliJoran(${i})" style="background:#f59e0b">Beli 💴 ${r.harga.toLocaleString()}</button>`;
     return `<div class="row"><span><b>${r.icon} ${r.nama}</b><br><small>${r.desc} • Lv ${r.lv} • ${punya?"Sudah Punya":"Harga 💴 "+r.harga.toLocaleString()}</small></span><div style="min-width:110px">${btn}</div></div>`;
   }).join("");
-  // === KG DIRINGKAS JADI 2 DESIMAL: 0.08 kg, bukan 0.083578... ===
   let fishHtml=inv.length?inv.map(f=>`<div class="row"><span><b>${f.emoji} ${f.nama}</b><br><small>${f.tier} • ${Number(f.berat).toFixed(2)} kg</small></span><b>💴 ${f.yen.toLocaleString()}</b></div>`).join(""):"<p style='text-align:center;color:#666;padding:12px'>Tas masih kosong, mancing dulu!</p>";
-  // === TAB JUAL SEMUA DIHAPUS, TINGGAL 2 TAB ===
   showModal(`<h2>🎒 Tas & Toko Joran</h2><p style="font-size:14px">Yen kamu: <b>💴 ${yen.toLocaleString()}</b></p><div class="tabs"><button class="on" onclick="openMenu()">Toko Joran</button><button onclick="openTas()">Ikan (${inv.length})</button></div><div class="list">${rodsHtml}</div><button onclick="closeModal()">Tutup</button>`);
   window._fishHtml=fishHtml;
 }
@@ -161,6 +183,7 @@ function closeModal(){ document.getElementById("modal").style.display="none"; }
 
 function mulaiMancing(){
   if(casting) return;
+  if(sisaCooldown() > 0){ toast(`⏳ Tunggu ${Math.ceil(sisaCooldown()/1000)} detik lagi...`); return; }
   if(!lagiDiAir()){ toast("🚫 Masih di darat! Jalan sampe garis putih pinggir air dulu 🌊"); return; }
   casting=true; me.mancing=true;
   document.getElementById("btnFish").disabled=true;
@@ -168,6 +191,13 @@ function mulaiMancing(){
   let riak = posisiRiak();
   ripples.push({x: riak.x, y: riak.y, r: 2, alpha: 1});
   setTimeout(()=>{
+    // CEK KE-2: pas ikan mau nyangkut, kamu masih di pinggir air gak?
+    // Ini yang bikin bug kemarin: start di air, jalan ke tengah, tetep dapet ikan
+    if(!casting) return;
+    if(!lagiDiAir()){
+      batalMancing("🚫 Kamu jalan ke darat! Mancing batal 🥲");
+      return;
+    }
     let power=RODS[rodIdx].power;
     let pool=[]; FISH.forEach(f=>{ let w=f.w; if(f.tier==="Rare") w*=1+power/100; if(f.tier==="Epic") w*=1+power/150; if(f.tier==="Legendary") w*=1+power/200; pool.push({f,w}); });
     let total=pool.reduce((a,b)=>a+b.w,0); let r=Math.random()*total; curFish=pool[0].f;
@@ -247,14 +277,26 @@ function cobaTarik(){
   if(tarikPos >= zonaAwal - 2 && tarikPos <= zonaAkhir){ selesaiMancing(false); return; }
   gagalMancing("❌ Meleset! Ikannya lepas... 🥲");
 }
+function batalMancing(pesan){
+  if(!casting) return;
+  if(tarikRaf) cancelAnimationFrame(tarikRaf);
+  clearTimeout(tarikTimeout);
+  casting=false; me.mancing=false;
+  document.getElementById("barGame").style.display="none";
+  document.getElementById("btnFish").disabled=false; document.getElementById("btnFish").innerHTML="🎣<br>Joran";
+  toast(pesan || "Mancing batal!");
+  mulaiCooldown();
+  renderHUD();
+}
 function gagalMancing(pesan){
   if(tarikRaf) cancelAnimationFrame(tarikRaf);
   clearTimeout(tarikTimeout);
   casting=false; me.mancing=false;
   document.getElementById("barGame").style.display="none";
   document.getElementById("btnFish").disabled=false; document.getElementById("btnFish").innerHTML="🎣<br>Joran";
-  renderHUD();
   toast(pesan || "Yah, ikannya lepas! 🥲");
+  mulaiCooldown();
+  renderHUD();
 }
 function selesaiMancing(isPerfect){
   if(tarikRaf) cancelAnimationFrame(tarikRaf);
@@ -276,6 +318,7 @@ function selesaiMancing(isPerfect){
   me.lastFishNama = ikan.nama;
   me.lastFishAt = Date.now();
   save(); renderHUD(); renderInv();
+  mulaiCooldown();
   showModal(`<div class="fish-big">${ikan.emoji}</div>
     ${isPerfect ? `<div style="background:#facc15;color:#000;padding:6px 12px;border-radius:20px;font-weight:900;display:inline-block;margin:6px 0">⭐ PERFECT! +20% YEN ⭐</div><br>` : ``}
     <span class="tier ${ikan.tier}">${ikan.tier.toUpperCase()}</span>
@@ -287,7 +330,23 @@ function selesaiMancing(isPerfect){
 }
 
 let joy=document.getElementById("joy"), stick=document.getElementById("stick"), dragging=false;
-function moveJoy(e){ let r=joy.getBoundingClientRect(); let cx=e.touches?e.touches[0].clientX:e.clientX; let cy=e.touches?e.touches[0].clientY:e.clientY; let dx=cx-(r.left+r.width/2), dy=cy-(r.top+r.height/2); let d=Math.sqrt(dx*dx+dy*dy); let max=26; if(d>max){dx=dx/d*max; dy=dy/d*max;} stick.style.left=(26+dx)+"px"; stick.style.top=(26+dy)+"px"; me.dx=dx/max*2.2; me.dy=dy/max*2.2; if(dx!==0) me.dir = dx>0?1:-1; }
+function moveJoy(e){
+  let r=joy.getBoundingClientRect();
+  let cx=e.touches?e.touches[0].clientX:e.clientX;
+  let cy=e.touches?e.touches[0].clientY:e.clientY;
+  let dx=cx-(r.left+r.width/2), dy=cy-(r.top+r.height/2);
+  let d=Math.sqrt(dx*dx+dy*dy); let max=26;
+  if(d>max){dx=dx/d*max; dy=dy/d*max;}
+  stick.style.left=(26+dx)+"px"; stick.style.top=(26+dy)+"px";
+  // === GESER ANALOG PAS MANCING = BATAL ===
+  if(casting && d > 6){
+    // Balikin stick
+    stick.style.left="26px"; stick.style.top="26px"; me.dx=0; me.dy=0;
+    batalMancing("🚶 Kamu gerak! Mancing batal 🥲");
+    return;
+  }
+  me.dx=dx/max*2.2; me.dy=dy/max*2.2; if(dx!==0) me.dir = dx>0?1:-1;
+}
 joy.addEventListener("touchstart",e=>{dragging=true; moveJoy(e)}); joy.addEventListener("touchmove",e=>{if(dragging) moveJoy(e)}); joy.addEventListener("touchend",()=>{dragging=false; stick.style.left="26px"; stick.style.top="26px"; me.dx=0; me.dy=0;});
 joy.addEventListener("mousedown",e=>{dragging=true; moveJoy(e)}); window.addEventListener("mousemove",e=>{if(dragging) moveJoy(e)}); window.addEventListener("mouseup",()=>{dragging=false; stick.style.left="26px"; stick.style.top="26px"; me.dx=0; me.dy=0;});
 
@@ -361,39 +420,68 @@ function draw(){
     cvW = innerWidth; cvH = innerHeight;
   }
   animTime += 0.016;
-  ctx.fillStyle="#f6d67a"; ctx.fillRect(0,0,cvW,cvH);
-  let grad = ctx.createLinearGradient(0,0,0,cvH);
+
+  // === KAMERA NGIKUTIN PLAYER + ZOOM ===
+  let targetCamX = me.x - (cvW/2)/ZOOM;
+  let targetCamY = me.y - (cvH/2)/ZOOM;
+  targetCamX = Math.max(0, Math.min(WORLD_W - cvW/ZOOM, targetCamX));
+  targetCamY = Math.max(0, Math.min(WORLD_H - cvH/ZOOM, targetCamY));
+  camX += (targetCamX - camX) * 0.15;
+  camY += (targetCamY - camY) * 0.15;
+
+  ctx.save();
+  ctx.scale(ZOOM, ZOOM);
+  ctx.translate(-camX, -camY);
+
+  // Map dunia 1200x1800
+  ctx.fillStyle="#f6d67a"; ctx.fillRect(0,0,WORLD_W,WORLD_H);
+  let grad = ctx.createLinearGradient(0,0,0,WORLD_H);
   grad.addColorStop(0,"#8ed860"); grad.addColorStop(1,"#5cb84a");
-  ctx.fillStyle=grad; ctx.fillRect(30,50,cvW-60,cvH-130);
-  ctx.fillStyle="#e8c87a"; ctx.fillRect(50,110,cvW-100,70);
-  ctx.fillStyle="#d4b36a"; ctx.fillRect(50,140,cvW-100,8);
-  ctx.fillStyle="#2aa5e0"; ctx.fillRect(0,cvH-80,cvW,80); ctx.fillRect(0,0,cvW,24);
+  ctx.fillStyle=grad; ctx.fillRect(100,100,WORLD_W-200,WORLD_H-200);
+  // Jalan tengah
+  ctx.fillStyle="#e8c87a"; ctx.fillRect(150, WORLD_H/2-60, WORLD_W-300, 70);
+  ctx.fillStyle="#d4b36a"; ctx.fillRect(150, WORLD_H/2-25, WORLD_W-300, 8);
+  // Air 4 sisi
+  ctx.fillStyle="#2aa5e0";
+  ctx.fillRect(0, WORLD_H-100, WORLD_W, 100);
+  ctx.fillRect(0, 0, WORLD_W, 100);
+  ctx.fillRect(0, 0, 100, WORLD_H);
+  ctx.fillRect(WORLD_W-100, 0, 100, WORLD_H);
+  // Garis putih pinggir air (batas mancing)
+  ctx.fillStyle="rgba(255,255,255,0.85)";
+  ctx.fillRect(100, WORLD_H-100, WORLD_W-200, 3);
+  ctx.fillRect(100, 100, WORLD_W-200, 3);
+  ctx.fillRect(100, 100, 3, WORLD_H-200);
+  ctx.fillRect(WORLD_W-100, 100, 3, WORLD_H-200);
+  // Ombak
   ctx.fillStyle="rgba(255,255,255,0.5)";
-  for(let i=0;i<cvW;i+=60){
-    let y = cvH-78 + Math.sin(animTime*2 + i*0.1)*3;
+  for(let i=0;i<WORLD_W;i+=60){
+    let y = WORLD_H-78 + Math.sin(animTime*2 + i*0.1)*3;
     ctx.fillRect(i, y, 30, 3);
     let y2 = 4 + Math.sin(animTime*2 + i*0.1)*2;
     ctx.fillRect(i, y2, 30, 2);
   }
   ctx.font="14px serif";
-  for(let i=0;i<10;i++){ ctx.fillText("🌸", 60+i*70, 90+Math.sin(i)*20); ctx.fillText("🌿", 80+i*60, cvH-140); }
-  gambarPohon(80, cvH-150, 1);
-  gambarPohon(cvW-90, 170, 1.1);
-  gambarPohon(90, 160, 0.9);
+  for(let i=0;i<14;i++){ ctx.fillText("🌸", 140+i*70, 200+Math.sin(i)*20); ctx.fillText("🌿", 180+i*60, WORLD_H-240); }
+  gambarPohon(200, WORLD_H-250, 1);
+  gambarPohon(WORLD_W-220, 270, 1.1);
+  gambarPohon(220, 260, 0.9);
+  gambarPohon(WORLD_W-220, WORLD_H-260, 1);
   let api = 1 + Math.sin(animTime*8)*0.2;
-  ctx.font=`${Math.round(22*api)}px serif`; ctx.fillText("🔥", 90, cvH-110);
-  ctx.font="18px serif"; ctx.fillText("🪵", 110, cvH-105);
-  ctx.font="28px serif"; ctx.fillText("⛲", cvW/2, cvH/2-20);
+  ctx.font=`${Math.round(22*api)}px serif`; ctx.fillText("🔥", 220, WORLD_H-210);
+  ctx.font="18px serif"; ctx.fillText("🪵", 240, WORLD_H-205);
+  ctx.font="28px serif"; ctx.fillText("⛲", WORLD_W/2, WORLD_H/2-120);
   ripples = ripples.filter(r=>r.alpha>0);
   ripples.forEach(r=>{
     r.r+=1.2; r.alpha-=0.02;
     ctx.strokeStyle=`rgba(255,255,255,${r.alpha})`; ctx.lineWidth=2;
-    ctx.beginPath(); ctx.arc(r.x, r.y, r.r, 0, Math.PI*2); ctx.stroke();
+    ctx.beginPath(); ctx.arc(r.x, r.y, r.r, 0, 0, Math.PI*2); ctx.stroke();
   });
   daun.forEach(d=>{
     d.y+=d.speed; d.x+=Math.sin(animTime+d.y)*0.5;
-    if(d.y>cvH) d.y=0;
-    ctx.font="12px serif"; ctx.fillText("🍃", d.x % cvW, d.y);
+    if(d.y>WORLD_H) d.y=0;
+    if(d.x>WORLD_W) d.x=0;
+    ctx.font="12px serif"; ctx.fillText("🍃", d.x, d.y);
   });
   players.forEach(p=>{
     p.x += ((p.tx ?? p.x) - p.x) * 0.35;
@@ -406,10 +494,13 @@ function draw(){
   me.jalan = jalan;
   gambarKarakter(me.x, me.y, nama, me.dir, jalan, me.mancing, true, me.lastFish, me.lastFishNama, me.lastFishAt);
   me.x+=me.dx; me.y+=me.dy;
-  // === BATAS JALAN: CUMA SAMPE GARIS PUTIH, GAK BOLEH MASUK AIR DALAM ===
-  me.x=Math.max(30,Math.min(cvW-30,me.x));
-  me.y=Math.max(38,Math.min(cvH-78,me.y));
-  if(!casting){
+  // Batas jalan: gak boleh masuk air dalam, cuma sampe pasir (100-170)
+  me.x=Math.max(110,Math.min(WORLD_W-110,me.x));
+  me.y=Math.max(110,Math.min(WORLD_H-110,me.y));
+
+  ctx.restore();
+
+  if(!casting && sisaCooldown() <= 0){
     let btn = document.getElementById("btnFish");
     if(btn){
       if(lagiDiAir()){ btn.style.background = "linear-gradient(180deg,#38bdf8,#0284c7)"; btn.style.boxShadow = "0 6px 0 #0c4a6e,0 10px 20px rgba(56,189,248,.5)"; }
@@ -438,8 +529,8 @@ let db = null;
 try{ firebase.initializeApp(firebaseConfig); db = firebase.database(); }catch(e){}
 setInterval(()=>{
   if(!db || !myID || myID==="FISH-DEMO") return;
-  let nx = Math.round(me.x / innerWidth * 1000);
-  let ny = Math.round(me.y / innerHeight * 1000);
+  let nx = Math.round(me.x / WORLD_W * 1000);
+  let ny = Math.round(me.y / WORLD_H * 1000);
   db.ref("online/" + myID).set({ nama, x: nx, y: ny, lv, mancing: me.mancing, dir: me.dir, lastFish: me.lastFish || "", lastFishNama: me.lastFishNama || "", lastFishAt: me.lastFishAt || 0, lastSeen: Date.now() });
 }, 150);
 if(db){
@@ -450,8 +541,8 @@ if(db){
       if(id === myID) return;
       let p = data[id];
       if(sekarang - p.lastSeen > 5000) return;
-      let px = p.x / 1000 * innerWidth;
-      let py = p.y / 1000 * innerHeight;
+      let px = p.x / 1000 * WORLD_W;
+      let py = p.y / 1000 * WORLD_H;
       let lama = players.find(q=>q.id===id);
       if(lama){
         lama.tx = px; lama.ty = py; lama.nama = p.nama;
