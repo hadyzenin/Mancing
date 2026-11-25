@@ -20,7 +20,7 @@ const FISH = [
 ];
 
 let players = [];
-let me = { x: 320, y: 300, dx: 0, dy: 0, dir: 1, jalan: 0, mancing: false };
+let me = { x: 320, y: 300, dx: 0, dy: 0, dir: 1, jalan: 0, mancing: false, lastFish: "", lastFishAt: 0, lastFishNama: "" };
 let inv = [], yen = 500, xp = 0, xpMax = 100, lv = 1, nama = "hady", myID = "FISH-DEMO", rodIdx = 0, ownedRods = [0];
 let casting = false, barVal = 50, barTimer = null, curFish = null, zoneL = 35;
 let animTime = 0, ripples = [], daun = [];
@@ -186,6 +186,13 @@ function selesaiMancing(){
   xp+=curFish.xp;
   let naik=false;
   while(xp>=xpMax){ xp-=xpMax; lv++; xpMax=Math.round(xpMax*1.4); naik=true; }
+
+  // === ANIMASI DAPET IKAN - DIPEGANG DI ATAS KEPALA ===
+  me.lastFish = ikan.emoji;
+  me.lastFishNama = ikan.nama;
+  me.lastFishAt = Date.now();
+  me.lastFishTier = ikan.tier;
+
   save(); renderHUD(); renderInv();
   showModal(`<div class="fish-big">${ikan.emoji}</div><span class="tier ${ikan.tier}">${ikan.tier.toUpperCase()}</span><h2>${ikan.nama}</h2><p style="font-size:18px;font-weight:800">${berat.toFixed(2)} kg</p><p style="color:#666;font-size:13px">+${curFish.xp} XP • 💴 ${ikan.yen.toLocaleString()} Yen • Joran: ${RODS[rodIdx].nama}</p>${naik?`<p style="color:#16a34a;font-weight:800">🎉 NAIK LEVEL! Sekarang Lv ${lv}</p>`:""}<button onclick="closeModal()">Simpan ke Tas 🎒</button>`);
 }
@@ -196,12 +203,21 @@ joy.addEventListener("touchstart",e=>{dragging=true; moveJoy(e)}); joy.addEventL
 joy.addEventListener("mousedown",e=>{dragging=true; moveJoy(e)}); window.addEventListener("mousemove",e=>{if(dragging) moveJoy(e)}); window.addEventListener("mouseup",()=>{dragging=false; stick.style.left="26px"; stick.style.top="26px"; me.dx=0; me.dy=0;});
 
 const cv=document.getElementById("cv"), ctx=cv.getContext("2d");
-function gambarKarakter(x, y, namaP, dir, jalan, mancing, isMe){
+
+// === GAMBAR KARAKTER - TANPA LV, + IKAN DI ATAS KEPALA ===
+function gambarKarakter(x, y, namaP, dir, jalan, mancing, isMe, fishEmoji, fishNama, fishAt){
   let bob = Math.sin(animTime*4 + x)*1.5;
   if(jalan>0.1) bob = Math.abs(Math.sin(animTime*10))*3;
+
+  // Lompat kecil pas dapet ikan
+  let lompat = 0;
+  let sisaIkan = fishAt ? (Date.now() - fishAt) : 99999;
+  let lagiPamer = fishEmoji && sisaIkan < 4000;
+  if(lagiPamer) lompat = -Math.abs(Math.sin(animTime*6))*6;
+
   ctx.fillStyle="rgba(0,0,0,0.25)";
   ctx.beginPath(); ctx.ellipse(x, y+14, 14, 4, 0, 0, Math.PI*2); ctx.fill();
-  ctx.save(); ctx.translate(x, y+bob); ctx.scale(dir, 1);
+  ctx.save(); ctx.translate(x, y+bob+lompat); ctx.scale(dir, 1);
   let kaki = jalan>0.1 ? Math.sin(animTime*10)*4 : 0;
   ctx.fillStyle="#2b3a67"; ctx.fillRect(-6, 8+kaki, 5, 8); ctx.fillRect(1, 8-kaki, 5, 8);
   ctx.fillStyle="#000"; ctx.fillRect(-6, 15+kaki, 6, 3); ctx.fillRect(1, 15-kaki, 6, 3);
@@ -212,21 +228,59 @@ function gambarKarakter(x, y, namaP, dir, jalan, mancing, isMe){
   ctx.fillStyle="#3b2314"; ctx.fillRect(-8, -18, 16, 5); ctx.fillRect(-8, -18, 3, 10);
   ctx.fillStyle="#000"; ctx.fillRect(2, -11, 3, 3);
   ctx.fillStyle="#ffd93d"; ctx.fillRect(-10, -21, 20, 4); ctx.fillRect(-5, -26, 10, 6);
+
+  // Tangan ke atas kalo lagi pamer ikan
+  if(lagiPamer){
+    ctx.fillStyle="#ffdbac"; ctx.fillRect(-12, -22, 4, 10); ctx.fillRect(8, -22, 4, 10);
+  }
+
   if(mancing){
     ctx.strokeStyle="#8b4513"; ctx.lineWidth=2;
     ctx.beginPath(); ctx.moveTo(8, 2); ctx.lineTo(26, -22+Math.sin(animTime*6)*2); ctx.stroke();
     ctx.strokeStyle="#fff"; ctx.lineWidth=1;
     ctx.beginPath(); ctx.moveTo(26, -22); ctx.lineTo(26, 18); ctx.stroke();
-  } else {
+    // Riak air pas mancing
+    ctx.strokeStyle="rgba(255,255,255,0.7)";
+    ctx.beginPath(); ctx.ellipse(26, 20, 8+Math.sin(animTime*4)*2, 2, 0, 0, Math.PI*2); ctx.stroke();
+  } else if(!lagiPamer){
     ctx.strokeStyle="#8b4513"; ctx.lineWidth=2;
     ctx.beginPath(); ctx.moveTo(8, 2); ctx.lineTo(22, -18); ctx.stroke();
   }
   ctx.restore();
+
+  // === IKAN DIPEGANG DI ATAS KEPALA ===
+  if(lagiPamer){
+    let goyang = Math.sin(animTime*8)*3;
+    let scale = 1 + Math.sin(animTime*8)*0.08;
+    ctx.save();
+    ctx.translate(x, y-52+lompat);
+    ctx.scale(scale, scale);
+    ctx.font="32px serif"; ctx.textAlign="center";
+    // Bayangan putih biar jelas
+    ctx.fillStyle="rgba(255,255,255,0.9)";
+    ctx.beginPath(); ctx.arc(0, 0, 22, 0, 0, Math.PI*2); ctx.fill();
+    ctx.fillText(fishEmoji, goyang, 11);
+    ctx.restore();
+    // Nama ikan di atasnya
+    ctx.font="bold 11px sans-serif"; ctx.textAlign="center";
+    ctx.fillStyle="#fff"; ctx.strokeStyle="rgba(0,0,0,0.8)"; ctx.lineWidth=3;
+    ctx.strokeText(fishNama, x, y-78+lompat);
+    ctx.fillText(fishNama, x, y-78+lompat);
+  }
+
+  // === NAMA TANPA LV ===
   ctx.font="bold 11px sans-serif"; ctx.textAlign="center";
   ctx.fillStyle="#fff"; ctx.strokeStyle="rgba(0,0,0,0.7)"; ctx.lineWidth=3;
-  ctx.strokeText(namaP+" Lv"+(isMe?lv:""), x, y-32);
-  ctx.fillText(namaP+" Lv"+(isMe?lv:""), x, y-32);
+  ctx.strokeText(namaP, x, y-32);
+  ctx.fillText(namaP, x, y-32);
   ctx.textAlign="left";
+
+  // Indikator lagi mancing
+  if(mancing){
+    ctx.font="16px serif"; ctx.textAlign="center";
+    ctx.fillText("🎣", x, y-44+Math.sin(animTime*4)*2);
+    ctx.textAlign="left";
+  }
 }
 function gambarPohon(x, y, s){
   let goyang = Math.sin(animTime*1.5 + x)*2;
@@ -274,17 +328,17 @@ function draw(){
     if(d.y>cv.height) d.y=0;
     ctx.font="12px serif"; ctx.fillText("🍃", d.x % cv.width, d.y);
   });
-  // PLAYER LAIN - LERP 0.35 BIAR MULUS
+  // PLAYER LAIN
   players.forEach(p=>{
     p.x += ((p.tx ?? p.x) - p.x) * 0.35;
     p.y += ((p.ty ?? p.y) - p.y) * 0.35;
     let dx = (p.tx ?? p.x) - p.x;
     if(Math.abs(dx) > 2){ p.jalan = 1; p.dir = dx > 0 ? 1 : -1; } else { p.jalan = 0; }
-    gambarKarakter(p.x, p.y, p.nama, p.dir || 1, p.jalan, false, false);
+    gambarKarakter(p.x, p.y, p.nama, p.dir || 1, p.jalan, p.mancing, false, p.lastFish, p.lastFishNama, p.lastFishAt);
   });
   let jalan = Math.abs(me.dx)+Math.abs(me.dy);
   me.jalan = jalan;
-  gambarKarakter(me.x, me.y, nama, me.dir, jalan, me.mancing, true);
+  gambarKarakter(me.x, me.y, nama, me.dir, jalan, me.mancing, true, me.lastFish, me.lastFishNama, me.lastFishAt);
   me.x+=me.dx; me.y+=me.dy;
   me.x=Math.max(40,Math.min(cv.width-40,me.x)); me.y=Math.max(70,Math.min(cv.height-110,me.y));
   requestAnimationFrame(draw);
@@ -298,7 +352,7 @@ if(lastID){
   if(d) document.getElementById("inputNama").value = d.nama;
 }
 
-// ===== FIREBASE REALTIME - HADY-C34E8 - UDAH LENGKAP =====
+// ===== FIREBASE REALTIME =====
 const firebaseConfig = {
   apiKey: "AIzaSyCt1hGe42I6Xg9ji9IDt9vbcnbZQYFw1Vw",
   authDomain: "hady-c34e8.firebaseapp.com",
@@ -313,18 +367,25 @@ let db = null;
 try{
   firebase.initializeApp(firebaseConfig);
   db = firebase.database();
-  console.log("Firebase nyambung!");
-}catch(e){ console.log("Firebase gagal:", e); }
+}catch(e){}
 
-// Kirim posisi ke Firebase tiap 100ms
+// Kirim posisi + status mancing + ikan terakhir
 setInterval(()=>{
   if(!db || !myID || myID==="FISH-DEMO") return;
   let nx = Math.round(me.x / innerWidth * 1000);
   let ny = Math.round(me.y / innerHeight * 1000);
-  db.ref("online/" + myID).set({ nama, x: nx, y: ny, lv, lastSeen: Date.now() });
+  db.ref("online/" + myID).set({
+    nama, x: nx, y: ny, lv,
+    mancing: me.mancing,
+    dir: me.dir,
+    lastFish: me.lastFish || "",
+    lastFishNama: me.lastFishNama || "",
+    lastFishAt: me.lastFishAt || 0,
+    lastSeen: Date.now()
+  });
 }, 100);
 
-// Dengerin temen secara langsung
+// Dengerin temen
 if(db){
   db.ref("online").on("value", (snap)=>{
     let data = snap.val() || {};
@@ -337,9 +398,12 @@ if(db){
       let py = p.y / 1000 * innerHeight;
       let lama = players.find(q=>q.id===id);
       if(lama){
-        lama.tx = px; lama.ty = py; lama.nama = p.nama; lama.lv = p.lv; lama.lastSeen = sekarang;
+        lama.tx = px; lama.ty = py; lama.nama = p.nama;
+        lama.mancing = p.mancing; lama.dir = p.dir || 1;
+        lama.lastFish = p.lastFish; lama.lastFishNama = p.lastFishNama; lama.lastFishAt = p.lastFishAt;
+        lama.lastSeen = sekarang;
       } else {
-        players.push({id, nama:p.nama, lv:p.lv, x:px, y:py, tx:px, ty:py, dir:1, jalan:0, lastSeen: sekarang});
+        players.push({id, nama:p.nama, x:px, y:py, tx:px, ty:py, dir:p.dir||1, jalan:0, mancing:p.mancing, lastFish:p.lastFish, lastFishNama:p.lastFishNama, lastFishAt:p.lastFishAt, lastSeen: sekarang});
       }
     });
     players = players.filter(p=> data[p.id] && sekarang - data[p.id].lastSeen < 5000);
