@@ -31,6 +31,31 @@ let casting = false, curFish = null, zoneL = 35;
 let animTime = 0, ripples = [], daun = [];
 for(let i=0;i<30;i++) daun.push({x: Math.random()*WORLD_W, y: Math.random()*WORLD_H, s: Math.random()*2+1, speed: Math.random()*0.5+0.3});
 
+// Ikan-ikan kecil berenang di laut biar hidup
+let ikanLaut = [];
+for(let i=0;i<10;i++){
+  ikanLaut.push({
+    x: Math.random() < 0.5 ? 50 : WORLD_W-50,
+    y: 300 + Math.random() * (WORLD_H-500),
+    speed: 0.4 + Math.random()*0.6,
+    dir: Math.random() < 0.5 ? 1 : -1,
+    warna: ["#f97316","#38bdf8","#facc15","#f472b6","#a78bfa"][i%5],
+    ukuran: 0.7 + Math.random()*0.6,
+    fase: Math.random()*Math.PI*2
+  });
+}
+for(let i=0;i<6;i++){
+  ikanLaut.push({
+    x: 150 + Math.random() * (WORLD_W-300),
+    y: WORLD_H-50 + Math.random()*40,
+    speed: 0.5 + Math.random()*0.5,
+    dir: Math.random() < 0.5 ? 1 : -1,
+    warna: ["#f97316","#38bdf8","#facc15","#f472b6"][i%4],
+    ukuran: 0.8 + Math.random()*0.5,
+    fase: Math.random()*Math.PI*2
+  });
+}
+
 let cooldownUntil = 0, cooldownTimer = null;
 function sisaCooldown(){ return Math.max(0, cooldownUntil - Date.now()); }
 function mulaiCooldown(){
@@ -98,7 +123,7 @@ function tambahChatKeList(namaPengirim, teks, isMe){
 
 let tarikPos = 50, tarikDir = 1, tarikRaf = null, tarikTimeout = null, tarikKecepatan = 2, tarikZonaW = 30, tarikSisaWaktu = 8000, tarikWaktuMulai = 0, tarikLastFrame = 0, tarikBarEl = null, tarikIkanEl = null, tarikTimerEl = null;
 
-// === FIX TEMBUS LAUT: MANCING CUMA DI GARIS BATAS AIR-DARAT ===
+// === FIX TEMBUS LAUT ===
 function lagiDiAir(){
   let diBawah = me.y >= WORLD_H-108 && me.y <= WORLD_H-92;
   let diKiri  = me.x >= 92 && me.x <= 108 && me.y > 160;
@@ -445,64 +470,130 @@ joy.addEventListener("mousedown",e=>{dragging=true; moveJoy(e)}); window.addEven
 
 const cv=document.getElementById("cv"), ctx=cv.getContext("2d");
 let cvW = 0, cvH = 0;
+
+// === IKAN HIDUP - DIGAMBAR, EKOR GOYANG ===
+function gambarIkanHidup(x, y, s, warna, dir, fase){
+  let goyang = Math.sin(animTime*6 + fase) * 4;
+  ctx.save(); ctx.translate(x, y); ctx.scale(dir * s, s);
+  ctx.fillStyle = warna;
+  ctx.beginPath();
+  ctx.moveTo(-14, 0);
+  ctx.quadraticCurveTo(-24, -8 + goyang, -28, -12 + goyang);
+  ctx.quadraticCurveTo(-22, 0, -28, 12 + goyang);
+  ctx.quadraticCurveTo(-24, 8 + goyang, -14, 0);
+  ctx.fill();
+  let g = ctx.createLinearGradient(-14, -10, 14, 10);
+  g.addColorStop(0, warna); g.addColorStop(1, "#ffffff");
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.ellipse(0, 0, 16, 9, 0, 0, Math.PI*2);
+  ctx.fill();
+  ctx.fillStyle = warna;
+  ctx.beginPath();
+  ctx.moveTo(-4, -8); ctx.quadraticCurveTo(2, -15, 8, -8); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = "rgba(0,0,0,0.15)"; ctx.lineWidth = 1;
+  for(let i=-8;i<=8;i+=5){ ctx.beginPath(); ctx.arc(i, 0, 6, -0.8, 0.8); ctx.stroke(); }
+  ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(9, -2, 3.2, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = "#111"; ctx.beginPath(); ctx.arc(10, -2, 1.6, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(10.5, -2.5, 0.6, 0, Math.PI*2); ctx.fill();
+  ctx.strokeStyle = "#111"; ctx.beginPath(); ctx.arc(13, 3, 2, 0.3, 1.4); ctx.stroke();
+  ctx.restore();
+}
+
+// === KARAKTER BARU - LEBIH HIDUP, ANIMASI SMOOTH ===
 function gambarKarakter(x, y, namaP, dir, jalan, mancing, isMe, fishEmoji, fishNama, fishAt, chatText, chatAt){
-  let bob = Math.sin(animTime*4 + x)*1.5;
-  if(jalan>0.1) bob = Math.abs(Math.sin(animTime*10))*3;
+  let jalanHalus = jalan > 0.1 ? 1 : 0;
+  let nafas = Math.sin(animTime*2.5 + x*0.01) * 1.2;
+  let ayunKaki = Math.sin(animTime*10) * (jalanHalus ? 5 : 0);
+  let ayunTangan = Math.sin(animTime*10) * (jalanHalus ? 4 : 0);
   let lompat = 0;
   let sisaIkan = fishAt ? (Date.now() - fishAt) : 99999;
   let lagiPamer = fishEmoji && sisaIkan < 4000;
-  if(lagiPamer) lompat = -Math.abs(Math.sin(animTime*6))*6;
+  if(lagiPamer) lompat = -Math.abs(Math.sin(animTime*5))*7;
   if(chatText && Date.now() - chatAt < 4000){
     ctx.font="bold 11px sans-serif"; ctx.textAlign="center";
-    let w = ctx.measureText(chatText).width + 16;
-    ctx.fillStyle="rgba(255,255,255,0.95)";
-    ctx.beginPath(); ctx.roundRect(x - w/2, y-70, w, 22, 10); ctx.fill();
-    ctx.fillStyle="#111"; ctx.fillText(chatText, x, y-55);
+    let w = ctx.measureText(chatText).width + 18;
+    ctx.fillStyle="rgba(255,255,255,0.97)";
+    ctx.beginPath(); ctx.roundRect(x - w/2, y-74, w, 24, 12); ctx.fill();
+    ctx.fillStyle="#111"; ctx.fillText(chatText, x, y-58);
+    ctx.beginPath(); ctx.moveTo(x-4, y-50); ctx.lineTo(x+4, y-50); ctx.lineTo(x, y-44); ctx.closePath(); ctx.fill();
   }
+  let bayangan = lagiPamer ? 10 : 14;
   ctx.fillStyle="rgba(0,0,0,0.25)";
-  ctx.beginPath(); ctx.ellipse(x, y+14, 14, 4, 0, 0, Math.PI*2); ctx.fill();
-  ctx.save(); ctx.translate(x, y+bob+lompat); ctx.scale(dir, 1);
-  let kaki = jalan>0.1 ? Math.sin(animTime*10)*4 : 0;
-  ctx.fillStyle="#2b3a67"; ctx.fillRect(-6, 8+kaki, 5, 8); ctx.fillRect(1, 8-kaki, 5, 8);
-  ctx.fillStyle="#000"; ctx.fillRect(-6, 15+kaki, 6, 3); ctx.fillRect(1, 15-kaki, 6, 3);
-  ctx.fillStyle = isMe ? "#ff6b9d" : "#4a90e2";
-  ctx.fillRect(-9, -2, 18, 12);
-  ctx.fillStyle="#fff"; ctx.fillRect(-9, -2, 18, 3);
-  ctx.fillStyle="#ffdbac"; ctx.fillRect(-8, -18, 16, 16);
-  ctx.fillStyle="#3b2314"; ctx.fillRect(-8, -18, 16, 5); ctx.fillRect(-8, -18, 3, 10);
-  ctx.fillStyle="#000"; ctx.fillRect(2, -11, 3, 3);
-  ctx.fillStyle="#ffd93d"; ctx.fillRect(-10, -21, 20, 4); ctx.fillRect(-5, -26, 10, 6);
-  if(lagiPamer){ ctx.fillStyle="#ffdbac"; ctx.fillRect(-12, -22, 4, 10); ctx.fillRect(8, -22, 4, 10); }
+  ctx.beginPath(); ctx.ellipse(x, y+16, bayangan, 4, 0, 0, Math.PI*2); ctx.fill();
+  ctx.save(); ctx.translate(x, y + nafas*0.3 + lompat); ctx.scale(dir, 1);
+  ctx.fillStyle="#1e293b";
+  ctx.beginPath(); ctx.roundRect(-8, 6 + ayunKaki, 7, 10, 3); ctx.fill();
+  ctx.beginPath(); ctx.roundRect(1, 6 - ayunKaki, 7, 10, 3); ctx.fill();
+  ctx.fillStyle="#fff";
+  ctx.beginPath(); ctx.roundRect(-8, 13 + ayunKaki, 7, 3, 2); ctx.fill();
+  ctx.beginPath(); ctx.roundRect(1, 13 - ayunKaki, 7, 3, 2); ctx.fill();
+  ctx.fillStyle="#2b3a67";
+  ctx.fillRect(-7, 0, 14, 8);
+  let warnaKaos = isMe ? "#ff6b9d" : "#4a90e2";
+  let gBadan = ctx.createLinearGradient(-10, -4, 10, 12);
+  gBadan.addColorStop(0, warnaKaos); gBadan.addColorStop(1, "#00000033");
+  ctx.fillStyle = gBadan;
+  ctx.beginPath(); ctx.roundRect(-10, -4, 20, 14, 6); ctx.fill();
+  ctx.fillStyle="rgba(255,255,255,0.9)";
+  ctx.beginPath(); ctx.ellipse(0, -3, 4, 2, 0, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle="#ffdbac";
+  ctx.beginPath(); ctx.roundRect(-14, -2 + ayunTangan, 5, 10, 3); ctx.fill();
+  ctx.beginPath(); ctx.roundRect(9, -2 - ayunTangan, 5, 10, 3); ctx.fill();
+  ctx.fillStyle="#ffdbac";
+  ctx.beginPath(); ctx.roundRect(-9, -22, 18, 18, 7); ctx.fill();
+  ctx.fillStyle="rgba(255,120,150,0.5)";
+  ctx.beginPath(); ctx.ellipse(-6, -10, 2.5, 1.8, 0, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(6, -10, 2.5, 1.8, 0, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle="#3b2314";
+  ctx.beginPath(); ctx.roundRect(-9, -22, 18, 7, 4); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(-9, -18); ctx.quadraticCurveTo(-4, -12, -2, -18); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(2, -18); ctx.quadraticCurveTo(5, -12, 9, -18); ctx.closePath(); ctx.fill();
+  ctx.fillStyle="#ffd93d";
+  ctx.beginPath(); ctx.roundRect(-11, -26, 22, 5, 3); ctx.fill();
+  ctx.beginPath(); ctx.roundRect(-5, -32, 10, 7, 3); ctx.fill();
+  let kedip = (animTime % 3) < 0.12;
+  if(kedip){
+    ctx.strokeStyle="#111"; ctx.lineWidth=1.2;
+    ctx.beginPath(); ctx.moveTo(0, -12); ctx.lineTo(4, -12); ctx.stroke();
+  } else {
+    ctx.fillStyle="#111";
+    ctx.beginPath(); ctx.arc(2, -12, 1.8, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle="#fff";
+    ctx.beginPath(); ctx.arc(2.6, -12.6, 0.6, 0, Math.PI*2); ctx.fill();
+  }
+  ctx.strokeStyle="#7c2d12"; ctx.lineWidth=1.2;
+  ctx.beginPath(); ctx.arc(2, -8, 3, 0.2, 1.2); ctx.stroke();
   if(mancing){
-    ctx.strokeStyle="#8b4513"; ctx.lineWidth=2;
-    ctx.beginPath(); ctx.moveTo(8, 2); ctx.lineTo(26, -22+Math.sin(animTime*6)*2); ctx.stroke();
-    ctx.strokeStyle="#fff"; ctx.lineWidth=1;
-    ctx.beginPath(); ctx.moveTo(26, -22); ctx.lineTo(26, 18); ctx.stroke();
-    ctx.strokeStyle="rgba(255,255,255,0.7)";
-    ctx.beginPath(); ctx.ellipse(26, 20, 8+Math.sin(animTime*4)*2, 2, 0, 0, Math.PI*2); ctx.stroke();
+    let lengkung = Math.sin(animTime*5)*2;
+    ctx.strokeStyle="#8b4513"; ctx.lineWidth=2.5; ctx.lineCap="round";
+    ctx.beginPath(); ctx.moveTo(9, 2); ctx.quadraticCurveTo(22, -10, 28, -24 + lengkung); ctx.stroke();
+    ctx.strokeStyle="rgba(255,255,255,0.9)"; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(28, -24 + lengkung); ctx.quadraticCurveTo(30, -5, 28, 20); ctx.stroke();
+    ctx.fillStyle="#ef4444";
+    ctx.beginPath(); ctx.arc(28 + Math.sin(animTime*4)*2, 20, 3, 0, Math.PI*2); ctx.fill();
   } else if(!lagiPamer){
-    ctx.strokeStyle="#8b4513"; ctx.lineWidth=2;
-    ctx.beginPath(); ctx.moveTo(8, 2); ctx.lineTo(22, -18); ctx.stroke();
+    ctx.strokeStyle="#8b4513"; ctx.lineWidth=2.2; ctx.lineCap="round";
+    ctx.beginPath(); ctx.moveTo(9, 2); ctx.lineTo(22, -18); ctx.stroke();
   }
   ctx.restore();
   if(lagiPamer){
-    let goyang = Math.sin(animTime*8)*3;
-    let scale = 1 + Math.sin(animTime*8)*0.08;
-    ctx.save(); ctx.translate(x, y-52+lompat); ctx.scale(scale, scale);
-    ctx.font="32px serif"; ctx.textAlign="center";
-    ctx.fillStyle="rgba(255,255,255,0.9)";
-    ctx.beginPath(); ctx.arc(0, 0, 22, 0, 0, Math.PI*2); ctx.fill();
-    ctx.fillText(fishEmoji, goyang, 11);
-    ctx.restore();
+    let warnaIkan = fishNama === "Leviathan" || fishNama === "Hiu Paus" ? "#f59e0b" : fishNama === "Naga Laut" ? "#a855f7" : fishNama === "Arwana" || fishNama === "Pari Manta" ? "#3b82f6" : fishNama === "Kakap" || fishNama === "Tuna" ? "#22c55e" : "#94a3b8";
+    gambarIkanHidup(x, y-58 + lompat, 1.1, warnaIkan, 1, 0);
+    for(let i=0;i<3;i++){
+      let by = y-70 + lompat - ((animTime*20 + i*12) % 20);
+      ctx.fillStyle="rgba(255,255,255,0.7)";
+      ctx.beginPath(); ctx.arc(x-16+i*14, by, 2, 0, Math.PI*2); ctx.fill();
+    }
     ctx.font="bold 11px sans-serif"; ctx.textAlign="center";
     ctx.fillStyle="#fff"; ctx.strokeStyle="rgba(0,0,0,0.8)"; ctx.lineWidth=3;
-    ctx.strokeText(fishNama, x, y-78+lompat);
-    ctx.fillText(fishNama, x, y-78+lompat);
+    ctx.strokeText(fishNama, x, y-82 + lompat);
+    ctx.fillText(fishNama, x, y-82 + lompat);
   }
   ctx.font="bold 11px sans-serif"; ctx.textAlign="center";
   ctx.fillStyle="#fff"; ctx.strokeStyle="rgba(0,0,0,0.7)"; ctx.lineWidth=3;
-  ctx.strokeText(namaP, x, y-32);
-  ctx.fillText(namaP, x, y-32);
+  ctx.strokeText(namaP, x, y-36);
+  ctx.fillText(namaP, x, y-36);
   ctx.textAlign="left";
 }
 function gambarPohon(x, y, s){
@@ -578,6 +669,17 @@ function draw(){
   }
   ctx.font="14px serif";
   for(let i=0;i<14;i++){ ctx.fillText("🌸", 140+i*70, 200+Math.sin(i)*20); ctx.fillText("🌿", 180+i*60, WORLD_H-240); }
+  // Ikan-ikan kecil berenang di laut
+  ikanLaut.forEach(f=>{
+    f.x += f.speed * f.dir;
+    if(f.dir === 1 && f.x > WORLD_W-30) { f.dir = -1; }
+    if(f.dir === -1 && f.x < 30) { f.dir = 1; }
+    if(f.y > WORLD_H-120){
+      if(f.x < 120) f.dir = 1;
+      if(f.x > WORLD_W-120) f.dir = -1;
+    }
+    gambarIkanHidup(f.x, f.y + Math.sin(animTime*3 + f.fase)*3, f.ukuran, f.warna, f.dir, f.fase);
+  });
   gambarPohon(200, WORLD_H-250, 1);
   gambarPohon(WORLD_W-220, 600, 1.1);
   gambarPohon(220, 600, 0.9);
@@ -619,7 +721,6 @@ function draw(){
   me.jalan = jalan;
   gambarKarakter(me.x, me.y, nama, me.dir, jalan, me.mancing, true, me.lastFish, me.lastFishNama, me.lastFishAt, me.chatText, me.chatAt);
   if(!casting){ me.x+=me.dx; me.y+=me.dy; }
-  // === BATAS JALAN: CUMA DI DARAT, MENTOK DI PINGGIR AIR ===
   me.y = Math.max(20, Math.min(WORLD_H-100, me.y));
   if(me.y < 160){
     me.x = Math.max(20, Math.min(WORLD_W-20, me.x));
