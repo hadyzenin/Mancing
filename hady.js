@@ -26,21 +26,20 @@ let casting = false, curFish = null, zoneL = 35;
 let animTime = 0, ripples = [], daun = [];
 for(let i=0;i<20;i++) daun.push({x: Math.random()*1000, y: Math.random()*800, s: Math.random()*2+1, speed: Math.random()*0.5+0.3});
 
-// === TANTANGAN TARIK V2 - ANTI LAG PAKAI RAF ===
 let tarikPos = 50, tarikDir = 1, tarikRaf = null, tarikTimeout = null, tarikKecepatan = 2, tarikZonaW = 30, tarikSisaWaktu = 8000, tarikWaktuMulai = 0, tarikLastFrame = 0, tarikBarEl = null, tarikIkanEl = null, tarikTimerEl = null;
 
 function lagiDiAir(){
-  let diAirBawah = me.y > innerHeight - 145;
-  let diAirAtas = me.y < 115;
-  let diAirKiri = me.x < 65;
-  let diAirKanan = me.x > innerWidth - 65;
+  let diAirBawah = me.y > innerHeight - 95;
+  let diAirAtas = me.y < 55;
+  let diAirKiri = me.x < 50;
+  let diAirKanan = me.x > innerWidth - 50;
   return diAirBawah || diAirAtas || diAirKiri || diAirKanan;
 }
 function posisiRiak(){
-  if(me.y > innerHeight - 145) return { x: me.x + 10, y: innerHeight - 60 };
-  if(me.y < 115) return { x: me.x + 10, y: 12 };
-  if(me.x < 65) return { x: 12, y: me.y + 20 };
-  if(me.x > innerWidth - 65) return { x: innerWidth - 12, y: me.y + 20 };
+  if(me.y > innerHeight - 95) return { x: me.x + 10, y: innerHeight - 40 };
+  if(me.y < 55) return { x: me.x + 10, y: 12 };
+  if(me.x < 50) return { x: 12, y: me.y + 20 };
+  if(me.x > innerWidth - 50) return { x: innerWidth - 12, y: me.y + 20 };
   return { x: me.x + 30, y: me.y + 40 };
 }
 
@@ -91,7 +90,7 @@ function startGame(){
   document.getElementById("login").style.display="none";
   document.getElementById("game").style.display="block";
   save(); renderHUD(); renderInv(); draw();
-  toast("Ke pinggir air dulu buat mancing! 🌊");
+  toast("Jalan sampe kakimu nyentuh air buat mancing! 🌊");
 }
 function renderHUD(){
   document.getElementById("pNama").textContent=nama;
@@ -100,16 +99,23 @@ function renderHUD(){
   document.getElementById("pXPMax").textContent=xpMax;
   document.getElementById("xpBar").style.width=(xp/xpMax*100)+"%";
   document.getElementById("pYen").textContent=yen.toLocaleString("id-ID");
-  document.getElementById("pTitle").textContent=RODS[rodIdx].nama;
-  // JUMLAH IKAN DIHAPUS DARI SINI
   document.getElementById("buffs").innerHTML=`<i>🎣 ${RODS[rodIdx].nama}</i><i>💴 ${yen.toLocaleString()} Yen</i>`;
+  let btn = document.getElementById("btnFish");
+  if(btn && !casting){
+    if(lagiDiAir()){
+      btn.style.background = "linear-gradient(180deg,#38bdf8,#0284c7)";
+      btn.style.boxShadow = "0 6px 0 #0c4a6e,0 10px 20px rgba(56,189,248,.5)";
+    } else {
+      btn.style.background = "linear-gradient(180deg,#94a3b8,#64748b)";
+      btn.style.boxShadow = "0 6px 0 #334155,0 10px 20px rgba(0,0,0,.3)";
+    }
+  }
 }
 function renderInv(){
   let el=document.getElementById("inv");
   el.innerHTML="";
   for(let i=0;i<5;i++){ let f=inv[i]; el.innerHTML+=`<div class="slot ${i===0?'active':''}">${f?f.emoji:""}<span>${f?(f.berat).toFixed(2):""}</span></div>`; }
-  // TAS TANPA ANGKA 0/45
-  el.innerHTML+=`<div class="slot" onclick="openMenu()" style="font-size:20px">🎒<span>&nbsp;</span></div>`;
+  el.innerHTML+=`<div class="slot" onclick="openMenu()" style="font-size:20px">🎒<span style="font-size:10px;font-weight:800;color:#16a34a">${inv.length}/45</span></div>`;
 }
 function toast(t){ let e=document.getElementById("toast"); e.textContent=t; e.style.display="block"; setTimeout(()=>e.style.display="none",3000); }
 function openMenu(){
@@ -147,7 +153,7 @@ function closeModal(){ document.getElementById("modal").style.display="none"; }
 
 function mulaiMancing(){
   if(casting) return;
-  if(!lagiDiAir()){ toast("🚫 Ke pinggir air dulu! Mancing cuma bisa di air 🌊"); return; }
+  if(!lagiDiAir()){ toast("🚫 Masih di darat! Jalan sampe kakimu nyentuh air dulu 🌊"); return; }
   casting=true; me.mancing=true;
   document.getElementById("btnFish").disabled=true;
   document.getElementById("btnFish").innerHTML="⏳<br>Lempar...";
@@ -161,12 +167,10 @@ function mulaiMancing(){
     mulaiTantangan();
   },1200+Math.random()*1000);
 }
-
-// === LOOP TARIK ANTI LAG - RAF + TRANSFORM ===
 function tarikLoop(now){
   if(!casting) return;
   if(!tarikLastFrame) tarikLastFrame = now;
-  let dt = Math.min(32, now - tarikLastFrame); // clamp biar gak loncat pas lag
+  let dt = Math.min(32, now - tarikLastFrame);
   tarikLastFrame = now;
   let step = tarikKecepatan * (dt / 16.6);
   tarikPos += tarikDir * step;
@@ -177,7 +181,6 @@ function tarikLoop(now){
     let x = (tarikPos / 100) * barW - 18;
     tarikIkanEl.style.transform = `translate(${x}px,-50%)`;
   }
-  // Timer bar - update di RAF yang sama, gak pake interval lagi
   if(tarikTimerEl){
     let sisa = tarikSisaWaktu - (now - tarikWaktuMulai);
     let pct = Math.max(0, sisa / tarikSisaWaktu * 100);
@@ -185,7 +188,6 @@ function tarikLoop(now){
   }
   tarikRaf = requestAnimationFrame(tarikLoop);
 }
-
 function mulaiTantangan(){
   let cfg = {
     Common:    { zona: 38, speed: 1.4, waktu: 8000 },
@@ -214,22 +216,17 @@ function mulaiTantangan(){
   perfectEl.style.width = perfectW + "%";
   document.getElementById("barGame").style.display = "block";
   document.getElementById("tarikTimerBar").style.width = "100%";
-
   tarikBarEl = document.querySelector(".tarik-bar");
   tarikIkanEl = document.getElementById("ikanGerak");
   tarikTimerEl = document.getElementById("tarikTimerBar");
   tarikIkanEl.textContent = curFish.emoji;
   tarikWaktuMulai = performance.now();
   tarikLastFrame = 0;
-
   if(tarikRaf) cancelAnimationFrame(tarikRaf);
   clearTimeout(tarikTimeout);
   tarikRaf = requestAnimationFrame(tarikLoop);
-  tarikTimeout = setTimeout(()=>{
-    if(casting) gagalMancing("⏰ Kelamaan! Ikannya lepas...");
-  }, tarikSisaWaktu);
+  tarikTimeout = setTimeout(()=>{ if(casting) gagalMancing("⏰ Kelamaan! Ikannya lepas..."); }, tarikSisaWaktu);
 }
-
 function cobaTarik(){
   if(!casting) return;
   if(tarikRaf) cancelAnimationFrame(tarikRaf);
@@ -238,26 +235,19 @@ function cobaTarik(){
   let zonaAkhir = zoneL + tarikZonaW;
   let perfectAwal = zoneL + tarikZonaW/2 - (tarikZonaW*0.35)/2;
   let perfectAkhir = perfectAwal + tarikZonaW*0.35;
-  if(tarikPos >= perfectAwal && tarikPos <= perfectAkhir){
-    selesaiMancing(true);
-    return;
-  }
-  if(tarikPos >= zonaAwal - 2 && tarikPos <= zonaAkhir){
-    selesaiMancing(false);
-    return;
-  }
+  if(tarikPos >= perfectAwal && tarikPos <= perfectAkhir){ selesaiMancing(true); return; }
+  if(tarikPos >= zonaAwal - 2 && tarikPos <= zonaAkhir){ selesaiMancing(false); return; }
   gagalMancing("❌ Meleset! Ikannya lepas... 🥲");
 }
-
 function gagalMancing(pesan){
   if(tarikRaf) cancelAnimationFrame(tarikRaf);
   clearTimeout(tarikTimeout);
   casting=false; me.mancing=false;
   document.getElementById("barGame").style.display="none";
   document.getElementById("btnFish").disabled=false; document.getElementById("btnFish").innerHTML="🎣<br>Joran";
+  renderHUD();
   toast(pesan || "Yah, ikannya lepas! 🥲");
 }
-
 function selesaiMancing(isPerfect){
   if(tarikRaf) cancelAnimationFrame(tarikRaf);
   clearTimeout(tarikTimeout);
@@ -358,7 +348,6 @@ function gambarPohon(x, y, s){
   ctx.fillStyle="#ff6b6b"; ctx.fillRect(x+6, y-8, 4, 4); ctx.fillRect(x-10, y-4, 4, 4);
 }
 function draw(){
-  // FIX LAG: canvas cuma di-resize kalo ukuran layar berubah, bukan tiap frame
   if(cv.width !== innerWidth || cv.height !== innerHeight){
     cv.width = innerWidth; cv.height = innerHeight;
     cvW = innerWidth; cvH = innerHeight;
@@ -409,7 +398,15 @@ function draw(){
   me.jalan = jalan;
   gambarKarakter(me.x, me.y, nama, me.dir, jalan, me.mancing, true, me.lastFish, me.lastFishNama, me.lastFishAt);
   me.x+=me.dx; me.y+=me.dy;
-  me.x=Math.max(40,Math.min(cvW-40,me.x)); me.y=Math.max(70,Math.min(cvH-110,me.y));
+  me.x=Math.max(30,Math.min(cvW-30,me.x));
+  me.y=Math.max(25,Math.min(cvH-65,me.y));
+  if(!casting){
+    let btn = document.getElementById("btnFish");
+    if(btn){
+      if(lagiDiAir()){ btn.style.background = "linear-gradient(180deg,#38bdf8,#0284c7)"; btn.style.boxShadow = "0 6px 0 #0c4a6e,0 10px 20px rgba(56,189,248,.5)"; }
+      else { btn.style.background = "linear-gradient(180deg,#94a3b8,#64748b)"; btn.style.boxShadow = "0 6px 0 #334155,0 10px 20px rgba(0,0,0,.3)"; }
+    }
+  }
   requestAnimationFrame(draw);
 }
 setInterval(()=>{ let d=new Date(); document.getElementById("jam").textContent=d.toLocaleDateString("id-ID",{weekday:"short",day:"numeric",month:"short"})+" · "+d.toLocaleTimeString("id-ID",{hour:"2-digit",minute:"2-digit"})+" WITA"; },1000);
