@@ -49,17 +49,16 @@
   </div>
   <div class="location"><b>Pulau Tengah Laut</b><br><span id="jam">Sel, 24 Nov · 16:39 WITA</span></div>
 
-  <!-- CHAT GLOBAL -->
+  <!-- CHAT TEXT - DI BAWAH PULAU TENGAH LAUT, TANPA BACKGROUND -->
+  <div id="chatFeed"></div>
+
+  <!-- CHAT GLOBAL - CUMA PAPAN TIK + KIRIM -->
   <button class="btn-chat" id="btnChat" onclick="toggleChat()">💬<span id="chatBadge" style="display:none">•</span></button>
-  <div id="chatBox" style="display:none">
-    <div class="chat-header">💬 Chat Global <button onclick="toggleChat()">✕</button></div>
-    <div id="chatList"></div>
-    <div class="chat-input-row">
-      <input id="chatInput" placeholder="Ketik chat..." maxlength="60" autocomplete="off">
-      <button onclick="kirimChat()">Kirim</button>
-    </div>
-    <div id="chatCooldown" style="font-size:10px;color:#888;text-align:center;padding:2px"></div>
+  <div id="chatInputBar" style="display:none">
+    <input id="chatInput" placeholder="Ketik chat..." maxlength="60" autocomplete="off">
+    <button onclick="kirimChat()">Kirim</button>
   </div>
+  <div id="chatCooldown"></div>
 
   <div id="barGame" style="display:none">
     <div class="tarik-card">
@@ -96,4 +95,4 @@
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
 <script src="hady.js"></script>
 </body>
-    </html>
+        </html>
