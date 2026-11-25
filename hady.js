@@ -28,18 +28,24 @@ for(let i=0;i<20;i++) daun.push({x: Math.random()*1000, y: Math.random()*800, s:
 
 let tarikPos = 50, tarikDir = 1, tarikRaf = null, tarikTimeout = null, tarikKecepatan = 2, tarikZonaW = 30, tarikSisaWaktu = 8000, tarikWaktuMulai = 0, tarikLastFrame = 0, tarikBarEl = null, tarikIkanEl = null, tarikTimerEl = null;
 
+// === BATAS AIR - CUMA SAMPE GARIS PUTIH PINGGIR AIR, GAK BOLEH NYEBUR ===
 function lagiDiAir(){
-  let diAirBawah = me.y > innerHeight - 95;
-  let diAirAtas = me.y < 55;
-  let diAirKiri = me.x < 50;
-  let diAirKanan = me.x > innerWidth - 50;
+  // Garis putih bawah: air mulai di innerHeight-80, jadi kaki pas di garis = y sekitar innerHeight-95 sampai innerHeight-80
+  // Kita kasih toleransi dikit: y > height-115 (udah nempel garis) dan y <= height-78 (gak boleh lewat garis)
+  let diAirBawah = me.y > innerHeight - 118 && me.y <= innerHeight - 78;
+  // Garis putih atas: air atas di y 0-24, garis di y ~50
+  let diAirAtas = me.y >= 38 && me.y < 85;
+  // Garis putih kiri: rumput mulai x=30, garis di x ~30-50
+  let diAirKiri = me.x >= 30 && me.x < 68;
+  // Garis putih kanan
+  let diAirKanan = me.x > innerWidth - 68 && me.x <= innerWidth - 30;
   return diAirBawah || diAirAtas || diAirKiri || diAirKanan;
 }
 function posisiRiak(){
-  if(me.y > innerHeight - 95) return { x: me.x + 10, y: innerHeight - 40 };
-  if(me.y < 55) return { x: me.x + 10, y: 12 };
-  if(me.x < 50) return { x: 12, y: me.y + 20 };
-  if(me.x > innerWidth - 50) return { x: innerWidth - 12, y: me.y + 20 };
+  if(me.y > innerHeight - 118) return { x: me.x + 10, y: innerHeight - 60 };
+  if(me.y < 85) return { x: me.x + 10, y: 12 };
+  if(me.x < 68) return { x: 12, y: me.y + 20 };
+  if(me.x > innerWidth - 68) return { x: innerWidth - 12, y: me.y + 20 };
   return { x: me.x + 30, y: me.y + 40 };
 }
 
@@ -90,7 +96,7 @@ function startGame(){
   document.getElementById("login").style.display="none";
   document.getElementById("game").style.display="block";
   save(); renderHUD(); renderInv(); draw();
-  toast("Jalan sampe kakimu nyentuh air buat mancing! 🌊");
+  toast("Jalan sampe garis putih pinggir air buat mancing! 🌊");
 }
 function renderHUD(){
   document.getElementById("pNama").textContent=nama;
@@ -129,8 +135,10 @@ function openMenu(){
     else btn = `<button onclick="beliJoran(${i})" style="background:#f59e0b">Beli 💴 ${r.harga.toLocaleString()}</button>`;
     return `<div class="row"><span><b>${r.icon} ${r.nama}</b><br><small>${r.desc} • Lv ${r.lv} • ${punya?"Sudah Punya":"Harga 💴 "+r.harga.toLocaleString()}</small></span><div style="min-width:110px">${btn}</div></div>`;
   }).join("");
-  let fishHtml=inv.length?inv.map(f=>`<div class="row"><span><b>${f.emoji} ${f.nama}</b><br><small>${f.tier} • ${f.berat} kg</small></span><b>💴 ${f.yen.toLocaleString()}</b></div>`).join(""):"<p style='text-align:center;color:#666;padding:12px'>Tas masih kosong, mancing dulu!</p>";
-  showModal(`<h2>🎒 Tas & Toko Joran</h2><p style="font-size:14px">Yen kamu: <b>💴 ${yen.toLocaleString()}</b></p><div class="tabs"><button class="on" onclick="openMenu()">Toko Joran</button><button onclick="openTas()">Ikan (${inv.length})</button><button onclick="openJual()">Jual Semua</button></div><div class="list">${rodsHtml}</div><button onclick="closeModal()">Tutup</button>`);
+  // === KG DIRINGKAS JADI 2 DESIMAL: 0.08 kg, bukan 0.083578... ===
+  let fishHtml=inv.length?inv.map(f=>`<div class="row"><span><b>${f.emoji} ${f.nama}</b><br><small>${f.tier} • ${Number(f.berat).toFixed(2)} kg</small></span><b>💴 ${f.yen.toLocaleString()}</b></div>`).join(""):"<p style='text-align:center;color:#666;padding:12px'>Tas masih kosong, mancing dulu!</p>";
+  // === TAB JUAL SEMUA DIHAPUS, TINGGAL 2 TAB ===
+  showModal(`<h2>🎒 Tas & Toko Joran</h2><p style="font-size:14px">Yen kamu: <b>💴 ${yen.toLocaleString()}</b></p><div class="tabs"><button class="on" onclick="openMenu()">Toko Joran</button><button onclick="openTas()">Ikan (${inv.length})</button></div><div class="list">${rodsHtml}</div><button onclick="closeModal()">Tutup</button>`);
   window._fishHtml=fishHtml;
 }
 function beliJoran(i){
@@ -153,7 +161,7 @@ function closeModal(){ document.getElementById("modal").style.display="none"; }
 
 function mulaiMancing(){
   if(casting) return;
-  if(!lagiDiAir()){ toast("🚫 Masih di darat! Jalan sampe kakimu nyentuh air dulu 🌊"); return; }
+  if(!lagiDiAir()){ toast("🚫 Masih di darat! Jalan sampe garis putih pinggir air dulu 🌊"); return; }
   casting=true; me.mancing=true;
   document.getElementById("btnFish").disabled=true;
   document.getElementById("btnFish").innerHTML="⏳<br>Lempar...";
@@ -398,8 +406,9 @@ function draw(){
   me.jalan = jalan;
   gambarKarakter(me.x, me.y, nama, me.dir, jalan, me.mancing, true, me.lastFish, me.lastFishNama, me.lastFishAt);
   me.x+=me.dx; me.y+=me.dy;
+  // === BATAS JALAN: CUMA SAMPE GARIS PUTIH, GAK BOLEH MASUK AIR DALAM ===
   me.x=Math.max(30,Math.min(cvW-30,me.x));
-  me.y=Math.max(25,Math.min(cvH-65,me.y));
+  me.y=Math.max(38,Math.min(cvH-78,me.y));
   if(!casting){
     let btn = document.getElementById("btnFish");
     if(btn){
