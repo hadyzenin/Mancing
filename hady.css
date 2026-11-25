@@ -887,3 +887,56 @@ button {
     height: 53px;
   }
 }
+/* CANVAS RESPONSIVE FIX */
+#game {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+#cv {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  image-rendering: pixelated;
+  touch-action: none;
+}
+
+/* Pastikan elemen game berada di atas canvas */
+.hud,
+.location,
+.btn-chat,
+#chatFeed,
+#chatInputBar,
+#chatCooldown,
+.controls,
+#barGame,
+#toast {
+  position: absolute;
+}
+
+/* Perbaikan tampilan layar pendek */
+@media (max-height: 600px) {
+  .hud {
+    top: 5px;
+  }
+
+  .controls {
+    padding: 6px;
+  }
+
+  .location {
+    top: 65px;
+  }
+}
+
+/* Hindari tombol tertutup area bawah HP */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  .controls {
+    padding-bottom: max(9px, env(safe-area-inset-bottom));
+  }
+   }
