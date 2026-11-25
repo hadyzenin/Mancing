@@ -1,107 +1,538 @@
-*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-body{font-family:'Segoe UI',system-ui,sans-serif;background:#0b2e4a;overflow:hidden;height:100vh}
-button{cursor:pointer;border:none;font-family:inherit}
-#login{position:fixed;inset:0;background:linear-gradient(180deg,#2aa5e0 0%,#8ed860 60%,#f6d67a 100%);display:flex;align-items:center;justify-content:center;padding:16px;z-index:10}
-.login-card{background:#fff;width:100%;max-width:380px;padding:24px;border-radius:20px;box-shadow:0 20px 40px rgba(0,0,0,.3)}
-.logo{font-size:52px;text-align:center}
-.login-card h1{text-align:center;font-size:24px;color:#1a5c2a}
-.subtitle{text-align:center;color:#666;font-size:13px;margin-bottom:16px}
-.login-card label{display:block;font-size:12px;font-weight:700;color:#444;margin:12px 0 4px}
-.login-card input{width:100%;padding:12px;border:2px solid #ddd;border-radius:10px;font-size:15px;outline:none}
-.login-card input:focus{border-color:#22c55e}
-.btn-small{background:#22c55e;color:#fff;padding:12px 14px;border-radius:10px;font-weight:700;white-space:nowrap}
-.btn-main{width:100%;background:#22c55e;color:#fff;padding:14px;border-radius:12px;font-size:17px;font-weight:800;margin-top:16px;box-shadow:0 4px 0 #15803d}
-.btn-main:active{transform:translateY(2px);box-shadow:none}
-#game{position:fixed;inset:0;background:#5cb84a}
-#cv{position:absolute;inset:0;width:100%;height:100%;display:block}
-.hud{position:absolute;top:10px;left:10px;right:10px;display:flex;justify-content:space-between;align-items:flex-start;pointer-events:none;z-index:5}
-.hud .card,.hud .pill{pointer-events:auto}
-.profile{display:flex;gap:10px;background:rgba(255,255,255,.95);padding:8px 12px 8px 8px;border-radius:14px;box-shadow:0 4px 20px rgba(0,0,0,.4);align-items:center}
-.avatar{width:44px;height:44px;background:#ffe9c9;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:26px;animation:floatY 2s ease-in-out infinite}
-.profile b{font-size:15px}
-.profile span{font-size:11px;color:#666}
-.bar{width:110px;height:8px;background:#e5e5e5;border-radius:10px;overflow:hidden;margin:4px 0}
-.bar i{display:block;height:100%;background:linear-gradient(90deg,#22c55e,#a3e635);transition:.3s}
-.top-right{display:flex;gap:8px}
-.pill{background:rgba(255,255,255,.95);padding:8px 12px;border-radius:20px;font-weight:800;font-size:13px;box-shadow:0 2px 10px rgba(0,0,0,.3)}
-.location{position:absolute;top:62px;right:10px;background:rgba(255,255,255,.92);padding:6px 10px;border-radius:10px;font-size:11px;text-align:right;z-index:5;line-height:1.3}
-.controls{position:absolute;bottom:16px;left:12px;right:12px;display:flex;justify-content:space-between;align-items:flex-end;z-index:5}
-.joystick{width:110px;height:110px;background:rgba(255,255,255,.35);border:2px solid rgba(255,255,255,.7);border-radius:50%;position:relative;backdrop-filter:blur(2px);box-shadow:inset 0 0 20px rgba(0,0,0,.2),0 4px 12px rgba(0,0,0,.3)}
-.stick{width:52px;height:52px;background:#fff;border-radius:50%;position:absolute;left:26px;top:26px;box-shadow:0 4px 10px rgba(0,0,0,.4)}
-.right{display:flex;flex-direction:column;align-items:flex-end;gap:8px}
-.mini-stats{display:flex;gap:6px}
-.mini-stats i{background:rgba(0,0,0,.6);color:#fff;font-style:normal;font-size:11px;padding:5px 8px;border-radius:20px}
-.inventory{display:flex;gap:6px}
-.slot{width:52px;height:52px;background:rgba(255,255,255,.95);border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:22px;box-shadow:0 2px 8px rgba(0,0,0,.2);position:relative}
-.slot span{font-size:9px;color:#666}
-.slot.active{outline:3px solid #22c55e}
-.btn-fish{width:78px;height:78px;border-radius:50%;background:linear-gradient(180deg,#4ade80,#16a34a);color:#fff;font-size:14px;font-weight:800;box-shadow:0 6px 0 #14532d,0 10px 20px rgba(0,0,0,.3);animation:floatY 2.5s ease-in-out infinite}
-.btn-fish:active{transform:translateY(4px);box-shadow:0 2px 0 #14532d}
-.btn-fish:disabled{opacity:.6}
-#modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:flex-end;justify-content:center;z-index:30}
-.modal-card{background:#fff;width:100%;max-width:480px;max-height:85vh;overflow:auto;padding:18px;border-radius:20px 20px 0 0}
-.modal-card h2{font-size:19px;margin-bottom:8px}
-.modal-card button{background:#1a5c2a;color:#fff;padding:11px 14px;border-radius:10px;font-weight:700;margin-top:8px;width:100%}
-.tabs{display:flex;gap:6px;margin:10px 0}
-.tabs button{background:#eee;color:#333;flex:1}
-.tabs button.on{background:#22c55e;color:#fff}
-.list{display:flex;flex-direction:column;gap:8px}
-.row{display:flex;justify-content:space-between;align-items:center;background:#f8f8f8;padding:10px;border-radius:10px}
-.row button{width:auto;margin:0;padding:8px 10px;font-size:12px}
-.fish-big{font-size:72px;text-align:center}
-.tier{display:inline-block;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:800;color:#fff}
-.tier.Common{background:#94a3b8}.tier.Uncommon{background:#22c55e}.tier.Rare{background:#3b82f6}.tier.Epic{background:#a855f7}.tier.Legendary{background:#f59e0b}
-#toast{position:absolute;left:50%;bottom:110px;transform:translateX(-50%);background:#111;color:#fff;padding:10px 16px;border-radius:20px;font-size:13px;z-index:40;white-space:nowrap}
-@keyframes floatY{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
-#barGame{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:20;width:320px;max-width:90vw}
-.tarik-card{background:linear-gradient(180deg,#1e293b,#0f172a);border:2px solid rgba(255,255,255,.25);border-radius:22px;padding:18px 16px 14px;text-align:center;color:#fff;box-shadow:0 20px 50px rgba(0,0,0,.6)}
-.tarik-ikan-besar{font-size:52px;animation:ikanGoyang 1s ease-in-out infinite;filter:drop-shadow(0 6px 10px rgba(0,0,0,.5))}
-@keyframes ikanGoyang{0%,100%{transform:translateY(0) rotate(-4deg)}50%{transform:translateY(-6px) rotate(4deg)}}
-.tarik-tier{display:inline-block;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:900;letter-spacing:1px;margin:6px 0 10px}
-.tarik-tier.Common{background:#94a3b8}.tarik-tier.Uncommon{background:#22c55e}.tarik-tier.Rare{background:#3b82f6}.tarik-tier.Epic{background:#a855f7;box-shadow:0 0 15px #a855f7}.tarik-tier.Legendary{background:linear-gradient(90deg,#f59e0b,#ef4444);box-shadow:0 0 18px #f59e0b;animation:kedip 0.8s infinite}
-@keyframes kedip{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
-.tarik-card b{font-size:18px;display:block}
-.tarik-timer-wrap{height:6px;background:#334155;border-radius:10px;overflow:hidden;margin-bottom:10px}
-.tarik-timer{height:100%;width:100%;background:linear-gradient(90deg,#22c55e,#facc15,#ef4444);will-change:width}
-.bar-wrap{height:22px;background:#333;border-radius:20px;position:relative;overflow:hidden;border:2px solid #fff}
-.bar-zone{position:absolute;top:0;bottom:0;width:28%;background:#22c55e;opacity:.9;will-change:left,width}
-.tarik-bar{height:44px!important;border-radius:14px!important;background:linear-gradient(90deg,#7f1d1d,#991b1b)!important;border:2px solid rgba(255,255,255,.4)!important;overflow:hidden}
-.tarik-bar .bar-zone{background:linear-gradient(90deg,#16a34a,#4ade80)!important;box-shadow:0 0 15px #22c55e inset,0 0 10px #22c55e;opacity:1!important}
-.bar-zone-perfect{position:absolute;top:0;bottom:0;background:#facc15;box-shadow:0 0 12px #facc15;z-index:2;will-change:left,width}
-#ikanGerak{position:absolute;top:50%;left:0;width:36px;font-size:30px;text-align:center;z-index:3;filter:drop-shadow(0 2px 4px rgba(0,0,0,.6));will-change:transform;transform:translate(0,-50%)}
-.btn-tarik{width:100%;background:linear-gradient(180deg,#4ade80,#16a34a);color:#fff;padding:14px;border-radius:14px;font-size:18px;font-weight:900;letter-spacing:1px;box-shadow:0 5px 0 #14532d,0 8px 20px rgba(34,197,94,.4);margin-top:12px;touch-action:manipulation}
-.btn-tarik:active{transform:translateY(3px);box-shadow:0 2px 0 #14532d}
-.btn-lepas{width:100%;background:transparent;color:#94a3b8;padding:8px;font-size:12px;margin-top:2px}
 
-/* === CHAT GLOBAL - TOMBOL KECIL, PAPAN TIK KECIL, CHAT PILL === */
-.btn-chat{position:absolute;left:10px;top:98px;width:36px;height:36px;border-radius:50%;background:#fff;font-size:18px;box-shadow:0 3px 10px rgba(0,0,0,.35);z-index:15;display:flex;align-items:center;justify-content:center;padding:0}
-.btn-chat span{position:absolute;top:1px;right:1px;width:9px;height:9px;background:#ef4444;border-radius:50%;font-size:1px;color:transparent}
-#chatFeed{position:absolute;top:100px;right:10px;width:190px;max-width:55vw;display:flex;flex-direction:column;gap:4px;pointer-events:none;z-index:14;align-items:flex-end}
-.chat-line{font-size:12px;font-weight:600;color:#fff;background:rgba(0,0,0,.42);padding:4px 9px;border-radius:12px;max-width:100%;word-break:break-word;backdrop-filter:blur(2px);animation:chatMasuk .2s ease;line-height:1.3}
-.chat-line b{color:#facc15;font-weight:800}
-.chat-line.me{background:rgba(21,128,61,.55)}
-.chat-line.me b{color:#bbf7d0}
-@keyframes chatMasuk{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
-#chatInputBar{position:absolute;left:50%;transform:translateX(-50%);bottom:148px;width:250px;max-width:68vw;display:flex;gap:6px;z-index:15;align-items:center}
-#chatInputBar input{flex:1;min-width:0;height:36px;padding:0 12px;border:2px solid #fff;border-radius:18px;font-size:13px;outline:none;background:rgba(255,255,255,.97);box-shadow:0 4px 14px rgba(0,0,0,.3)}
-#chatInputBar button{height:36px;background:#22c55e;color:#fff;padding:0 14px;border-radius:18px;font-weight:800;font-size:13px;box-shadow:0 3px 0 #15803d;white-space:nowrap}
-#chatInputBar button:active{transform:translateY(2px);box-shadow:0 1px 0 #15803d}
-#chatCooldown{position:absolute;left:0;right:0;bottom:136px;text-align:center;font-size:11px;font-weight:700;color:#fff;text-shadow:0 1px 0 #000,0 -1px 0 #000,1px 0 0 #000,-1px 0 0 #000;pointer-events:none;z-index:15}
+/* =====================================
+   PULAU TENGAH LAUT
+   PIXEL ISLAND REDESIGN
+   ===================================== */
 
-/* === TAS IKAN - KOTAK-KOTAK KECIL KAYAK DI LUAR === */
-.tas-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:8px}
-.tas-slot{aspect-ratio:1/1.1;background:#f8f8f8;border:3px solid #94a3b8;border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px}
-.tas-slot .emoji{font-size:26px;line-height:1}
-.tas-slot .berat{font-size:10px;font-weight:800;color:#333;line-height:1}
-.tas-slot.Common{border-color:#94a3b8}
-.tas-slot.Uncommon{border-color:#22c55e}
-.tas-slot.Rare{border-color:#3b82f6}
-.tas-slot.Epic{border-color:#a855f7;box-shadow:0 0 8px rgba(168,85,247,.4)}
-.tas-slot.Legendary{border-color:#f59e0b;box-shadow:0 0 10px rgba(245,158,11,.5)}
+:root {
+  --sea: #075b91;
+  --sea2: #0b83ad;
+  --foam: #b7f6ed;
+  --sand: #f4d78c;
+  --grass: #548f45;
+  --ink: #10263c;
+  --panel: #102b45;
+  --panel2: #19415a;
+  --gold: #ffd76c;
+  --mint: #63e3ae;
+}
 
-/* === TOKO - TAB MENYAMPING === */
-.toko-tabs{display:flex!important;flex-direction:row!important;gap:6px;margin:10px 0}
-.toko-tabs button{flex:1!important;width:auto!important;min-width:0!important;margin:0!important;padding:10px 4px!important;border-radius:10px;font-weight:800;font-size:13px;background:#eee;color:#333;white-space:nowrap}
-.toko-tabs button.on{background:#f59e0b!important;color:#fff!important}
-.toko-total{background:#fef3c7;border:1px dashed #f59e0b;border-radius:10px;padding:10px;text-align:center;font-weight:800;margin:10px 0}
-.btn-jual-satu{background:#22c55e!important;padding:8px 10px!important;font-size:12px!important;width:auto!important;margin:0!important}
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  background: #062d4b !important;
+  color: #f4f7e8 !important;
+  font-family: ui-monospace, "Courier New", monospace !important;
+}
+
+body {
+  image-rendering: pixelated;
+}
+
+button,
+input {
+  font-family: inherit !important;
+}
+
+#game {
+  background: linear-gradient(
+    180deg,
+    #0879a9,
+    #07517f
+  ) !important;
+}
+
+#cv {
+  image-rendering: pixelated;
+  filter: saturate(1.13) contrast(1.04);
+}
+
+/* OCEAN TEXTURE */
+
+#game:before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  opacity: .18;
+
+  background-image: repeating-linear-gradient(
+    135deg,
+    transparent 0 13px,
+    #69d6d5 13px 15px,
+    transparent 15px 30px
+  );
+
+  mix-blend-mode: screen;
+}
+
+/* HUD */
+
+.hud {
+  z-index: 8 !important;
+  gap: 8px;
+  align-items: flex-start !important;
+}
+
+.profile,
+.pill,
+.location,
+.mini-stats i,
+.slot {
+  background: linear-gradient(
+    180deg,
+    #19435b,
+    #102c43
+  ) !important;
+
+  color: #f5f0d9 !important;
+  border: 2px solid #071b2c !important;
+  border-radius: 12px !important;
+
+  box-shadow:
+    0 3px 0 #061523,
+    0 5px 12px #00152288 !important;
+
+  text-shadow: 1px 2px #071b2c;
+}
+
+.profile {
+  padding: 7px 11px !important;
+  min-width: 220px;
+}
+
+.avatar {
+  border: 2px solid #071b2c !important;
+  border-radius: 8px !important;
+  background: #f3d3ad !important;
+}
+
+.profile b,
+.pill {
+  color: #fff1b7 !important;
+}
+
+.profile span,
+.location {
+  color: #b9e4e4 !important;
+}
+
+.bar {
+  background: #071a2c !important;
+  border: 1px solid #061523;
+  height: 9px !important;
+}
+
+.bar i {
+  background: linear-gradient(
+    90deg,
+    #32c77f,
+    #b2f36b
+  ) !important;
+}
+
+.top-right {
+  gap: 7px !important;
+}
+
+.pill {
+  padding: 8px 12px !important;
+}
+
+.location {
+  top: 62px !important;
+  right: 10px !important;
+  text-align: right;
+}
+
+/* GAME CONTROLS */
+
+.controls {
+  z-index: 9 !important;
+  bottom: 12px !important;
+  left: 12px !important;
+  right: 12px !important;
+  align-items: flex-end !important;
+}
+
+.joystick {
+  background: #102b4577 !important;
+  border: 3px solid #d4e8d9aa !important;
+
+  box-shadow:
+    inset 0 0 0 5px #061a2b55,
+    0 5px 0 #061523 !important;
+
+  backdrop-filter: blur(2px);
+}
+
+.stick {
+  background: #e6d2a4 !important;
+  border: 3px solid #fff1cf !important;
+  box-shadow: 0 3px 0 #765c42 !important;
+}
+
+.right {
+  gap: 7px !important;
+}
+
+/* STATUS BONUS */
+
+.mini-stats i {
+  font-size: 11px !important;
+  padding: 6px 9px !important;
+}
+
+/* INVENTORY */
+
+.inventory {
+  gap: 5px !important;
+}
+
+.slot {
+  width: 51px !important;
+  height: 51px !important;
+
+  background: linear-gradient(
+    180deg,
+    #244a5c,
+    #112b40
+  ) !important;
+
+  border-radius: 8px !important;
+  font-size: 23px !important;
+}
+
+.slot span {
+  color: #c3dedb !important;
+}
+
+.slot.active {
+  outline: 3px solid #ffd76c !important;
+
+  box-shadow:
+    0 0 0 2px #071a2b,
+    0 0 16px #ffd76c88 !important;
+}
+
+/* FISHING BUTTON */
+
+.btn-fish {
+  width: 82px !important;
+  height: 82px !important;
+
+  background: linear-gradient(
+    180deg,
+    #e9d8b8,
+    #a98a60
+  ) !important;
+
+  border: 4px solid #fff0cf !important;
+  color: #fff !important;
+
+  text-shadow: 1px 2px #604b39 !important;
+
+  box-shadow:
+    0 5px 0 #604b39,
+    0 9px 18px #00152299 !important;
+}
+
+.btn-fish:active {
+  transform: translateY(4px) !important;
+}
+
+/* NOTIFICATION */
+
+#toast {
+  background: #f8e8b8 !important;
+  color: #24384a !important;
+
+  border: 3px solid #8c6944 !important;
+  border-radius: 8px !important;
+
+  font-weight: 900 !important;
+  box-shadow: 0 4px 0 #061523 !important;
+}
+
+/* MODAL */
+
+#modal {
+  background: #04182bcc !important;
+  backdrop-filter: blur(3px);
+}
+
+.modal-card {
+  background: linear-gradient(
+    180deg,
+    #19415a,
+    #102b43
+  ) !important;
+
+  color: #f7f0d7 !important;
+  border: 3px solid #071a2b !important;
+  border-radius: 16px 16px 0 0 !important;
+
+  box-shadow: 0 -8px 30px #00152288 !important;
+}
+
+.modal-card h2 {
+  color: #ffe39a !important;
+}
+
+.modal-card button {
+  background: linear-gradient(
+    180deg,
+    #38bd83,
+    #16875d
+  ) !important;
+
+  border: 2px solid #071a2b !important;
+  box-shadow: 0 3px 0 #06472f !important;
+  color: white !important;
+}
+
+/* TABS */
+
+.tabs button {
+  background: #284b5e !important;
+  color: #d6e9e4 !important;
+}
+
+.tabs button.on {
+  background: #d49b43 !important;
+  color: #fff !important;
+}
+
+/* ITEM ROW */
+
+.row {
+  background: #17384e !important;
+  color: #eff3dd !important;
+  border: 1px solid #315a69 !important;
+}
+
+.row button {
+  background: #25865f !important;
+}
+
+.tas-slot {
+  background: #16384e !important;
+  border: 3px solid #547181 !important;
+}
+
+.tas-slot .berat {
+  color: #e8e6d4 !important;
+}
+
+/* FISHING PANEL */
+
+.tarik-card {
+  background: linear-gradient(
+    180deg,
+    #1d4860,
+    #10283f
+  ) !important;
+
+  border: 3px solid #071a2b !important;
+  border-radius: 14px !important;
+}
+
+.tarik-card b {
+  color: #ffe7a0 !important;
+}
+
+.bar-wrap {
+  border: 3px solid #071a2b !important;
+}
+
+.btn-tarik {
+  background: linear-gradient(
+    180deg,
+    #49d894,
+    #16885d
+  ) !important;
+
+  border: 2px solid #071a2b !important;
+}
+
+/* CHAT */
+
+.btn-chat {
+  background: #173c55 !important;
+  color: #fff !important;
+  border: 2px solid #071a2b !important;
+}
+
+.chat-line {
+  background: #102b43dd !important;
+  border: 1px solid #477080 !important;
+}
+
+#chatInputBar input {
+  background: #f4e8c8 !important;
+  border: 2px solid #102b43 !important;
+}
+
+#chatInputBar button {
+  background: #238d68 !important;
+}
+
+/* LOGIN SCREEN */
+
+#login {
+  background:
+    radial-gradient(
+      ellipse at 50% 90%,
+      #e8c778 0 16%,
+      transparent 17%
+    ),
+    linear-gradient(
+      180deg,
+      #05618e 0%,
+      #0b91ae 48%,
+      #6caa5a 100%
+    ) !important;
+}
+
+.login-card {
+  background: linear-gradient(
+    180deg,
+    #19415a,
+    #102b43
+  ) !important;
+
+  color: #f5efd9 !important;
+  border: 3px solid #071a2b !important;
+  border-radius: 16px !important;
+
+  box-shadow:
+    0 8px 0 #061523,
+    0 18px 45px #00152299 !important;
+}
+
+.login-card h1 {
+  color: #ffe39a !important;
+}
+
+.login-card .subtitle,
+.login-card label {
+  color: #c4e0da !important;
+}
+
+.login-card input {
+  background: #f7edcf !important;
+  border: 2px solid #476b77 !important;
+  color: #183044 !important;
+  border-radius: 8px !important;
+}
+
+/* BUTTONS */
+
+.btn-small,
+.btn-main {
+  background: linear-gradient(
+    180deg,
+    #43d28e,
+    #16885d
+  ) !important;
+
+  border: 2px solid #071a2b !important;
+  box-shadow: 0 4px 0 #075438 !important;
+  color: #fff !important;
+}
+
+#idBaruBox {
+  background: #153c45 !important;
+  color: #e5f5db !important;
+}
+
+/* MOBILE RESPONSIVE */
+
+@media (max-width: 650px) {
+
+  .profile {
+    min-width: 0 !important;
+    padding: 6px !important;
+    gap: 6px !important;
+  }
+
+  .avatar {
+    width: 36px !important;
+    height: 36px !important;
+    font-size: 21px !important;
+  }
+
+  .profile b {
+    font-size: 12px !important;
+  }
+
+  .profile span {
+    font-size: 9px !important;
+  }
+
+  .bar {
+    width: 82px !important;
+  }
+
+  .top-right {
+    gap: 4px !important;
+  }
+
+  .pill {
+    font-size: 11px !important;
+    padding: 7px 8px !important;
+  }
+
+  .location {
+    font-size: 9px !important;
+    top: 57px !important;
+  }
+
+  .joystick {
+    width: 94px !important;
+    height: 94px !important;
+  }
+
+  .stick {
+    width: 44px !important;
+    height: 44px !important;
+    left: 22px !important;
+    top: 22px !important;
+  }
+
+  .slot {
+    width: 40px !important;
+    height: 43px !important;
+    font-size: 18px !important;
+  }
+
+  .slot span {
+    font-size: 8px !important;
+  }
+
+  .mini-stats {
+    gap: 3px !important;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    max-width: 220px;
+  }
+
+  .mini-stats i {
+    font-size: 9px !important;
+    padding: 4px 6px !important;
+  }
+
+  .btn-fish {
+    width: 70px !important;
+    height: 70px !important;
+    font-size: 12px !important;
+  }
+
+  .controls {
+    bottom: 9px !important;
+  }
+}
