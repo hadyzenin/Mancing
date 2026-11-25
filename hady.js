@@ -98,11 +98,11 @@ function tambahChatKeList(namaPengirim, teks, isMe){
 
 let tarikPos = 50, tarikDir = 1, tarikRaf = null, tarikTimeout = null, tarikKecepatan = 2, tarikZonaW = 30, tarikSisaWaktu = 8000, tarikWaktuMulai = 0, tarikLastFrame = 0, tarikBarEl = null, tarikIkanEl = null, tarikTimerEl = null;
 
-// === ATAS JADI DARAT ===
+// === FIX TEMBUS LAUT: MANCING CUMA DI GARIS BATAS AIR-DARAT ===
 function lagiDiAir(){
-  let diBawah = me.y >= WORLD_H-112 && me.y <= WORLD_H-88;
-  let diKiri  = me.x >= 88 && me.x <= 112 && me.y > 160;
-  let diKanan = me.x >= WORLD_W-112 && me.x <= WORLD_W-88 && me.y > 160;
+  let diBawah = me.y >= WORLD_H-108 && me.y <= WORLD_H-92;
+  let diKiri  = me.x >= 92 && me.x <= 108 && me.y > 160;
+  let diKanan = me.x >= WORLD_W-108 && me.x <= WORLD_W-92 && me.y > 160;
   return diBawah || diKiri || diKanan;
 }
 function posisiRiak(){
@@ -219,8 +219,6 @@ function renderInv(){
   el.innerHTML+=`<div class="slot" onclick="openTas()" style="font-size:20px">🎒<span style="font-size:10px;font-weight:800;color:#16a34a">${inv.length}/45</span></div>`;
 }
 function toast(t){ let e=document.getElementById("toast"); e.textContent=t; e.style.display="block"; setTimeout(()=>e.style.display="none",3000); }
-
-// === TAS: KOTAK-KOTAK KECIL, BORDER = TIER, BAWAH = BERAT, TANPA HARGA ===
 function openTas(){
   let gridHtml = "";
   if(!inv.length){
@@ -235,8 +233,6 @@ function openTas(){
   }
   showModal(`<h2>🎒 Tas Ikan</h2><p style="font-size:13px;color:#666">${inv.length}/45 ikan</p>${gridHtml}<button onclick="closeModal()">Tutup</button>`);
 }
-
-// === TOKO: CUMA BISA DIBUKA DI DEKAT LINGKARAN TOKO, YEN DIHAPUS ===
 function openToko(tab, dariDalam){
   if(!dariDalam && !lagiDiToko()){ toast("🚫 Harus deket Toko dulu! Jalan ke darat atas 🏪"); return; }
   tab = tab || "jual";
@@ -623,8 +619,15 @@ function draw(){
   me.jalan = jalan;
   gambarKarakter(me.x, me.y, nama, me.dir, jalan, me.mancing, true, me.lastFish, me.lastFishNama, me.lastFishAt, me.chatText, me.chatAt);
   if(!casting){ me.x+=me.dx; me.y+=me.dy; }
-  me.x=Math.max(20,Math.min(WORLD_W-20,me.x));
-  me.y=Math.max(20,Math.min(WORLD_H-88,me.y));
+  // === BATAS JALAN: CUMA DI DARAT, MENTOK DI PINGGIR AIR ===
+  me.y = Math.max(20, Math.min(WORLD_H-100, me.y));
+  if(me.y < 160){
+    me.x = Math.max(20, Math.min(WORLD_W-20, me.x));
+  } else {
+    me.x = Math.max(100, Math.min(WORLD_W-100, me.x));
+    if(me.x <= 100) me.x = 100;
+    if(me.x >= WORLD_W-100) me.x = WORLD_W-100;
+  }
   if(me.x > TOKO.x-TOKO.w/2-14 && me.x < TOKO.x+TOKO.w/2+14 && me.y > TOKO.y-20 && me.y < TOKO.y+TOKO.h+10){
     if(me.y < TOKO.y+TOKO.h/2) me.y = TOKO.y-20;
     else me.y = TOKO.y+TOKO.h+10;
