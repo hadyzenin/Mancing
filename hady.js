@@ -26,8 +26,8 @@ let casting = false, curFish = null, zoneL = 35;
 let animTime = 0, ripples = [], daun = [];
 for(let i=0;i<20;i++) daun.push({x: Math.random()*1000, y: Math.random()*800, s: Math.random()*2+1, speed: Math.random()*0.5+0.3});
 
-// === TANTANGAN TARIK ===
-let tarikPos = 50, tarikDir = 1, tarikHits = 0, tarikButuh = 3, tarikMiss = 0, tarikTimer = null, tarikTimeout = null, tarikKecepatan = 2.2;
+// === TANTANGAN TARIK V2 - CUMA 1x TAP ===
+let tarikPos = 50, tarikDir = 1, tarikTimer = null, tarikTimeout = null, tarikKecepatan = 2, tarikZonaW = 30, tarikSisaWaktu = 8000, tarikWaktuMulai = 0, tarikTimerAnim = null;
 
 function lagiDiAir(){
   let diAirBawah = me.y > innerHeight - 145;
@@ -161,78 +161,107 @@ function mulaiMancing(){
 }
 
 function mulaiTantangan(){
-  if(curFish.tier==="Common") { tarikButuh=2; tarikKecepatan=1.6; }
-  else if(curFish.tier==="Uncommon") { tarikButuh=3; tarikKecepatan=2.0; }
-  else if(curFish.tier==="Rare") { tarikButuh=4; tarikKecepatan=2.6; }
-  else if(curFish.tier==="Epic") { tarikButuh=5; tarikKecepatan=3.2; }
-  else { tarikButuh=6; tarikKecepatan=3.8; }
-  tarikHits=0; tarikMiss=0; tarikPos=50; tarikDir=1;
-  zoneL=30+Math.random()*20;
-  document.getElementById("tantanganIkan").textContent=curFish.emoji;
-  document.getElementById("tantanganNama").textContent=curFish.nama+" Nyangkut!";
-  document.getElementById("tantanganInfo").textContent=`Tarik ${tarikButuh}x pas di zona hijau! Meleset 2x = lepas!`;
-  document.getElementById("barZone").style.left=zoneL+"%";
-  document.getElementById("barGame").style.display="block";
-  updateTantanganSkor();
-  clearInterval(tarikTimer);
-  tarikTimer=setInterval(()=>{
+  let cfg = {
+    Common:    { zona: 38, speed: 1.4, waktu: 8000, label: "Mudah 😊" },
+    Uncommon:  { zona: 30, speed: 2.0, waktu: 7000, label: "Lumayan 😐" },
+    Rare:      { zona: 22, speed: 2.8, waktu: 6000, label: "Sulit 😬" },
+    Epic:      { zona: 15, speed: 3.6, waktu: 5000, label: "Sangat Sulit 😱" },
+    Legendary: { zona: 10, speed: 4.6, waktu: 4000, label: "GILA! 🔥🔥" },
+  };
+  let c = cfg[curFish.tier] || cfg.Common;
+  tarikZonaW = c.zona;
+  tarikKecepatan = c.speed;
+  tarikSisaWaktu = c.waktu;
+  tarikPos = 50; tarikDir = Math.random() > 0.5 ? 1 : -1;
+  zoneL = 20 + Math.random() * (70 - c.zona);
+  document.getElementById("tantanganIkan").textContent = curFish.emoji;
+  let tierEl = document.getElementById("tantanganTier");
+  tierEl.textContent = curFish.tier.toUpperCase();
+  tierEl.className = "tarik-tier " + curFish.tier;
+  document.getElementById("tantanganNama").textContent = curFish.nama + " Nyangkut!";
+  document.getElementById("tantanganInfo").textContent = `1x kesempatan! Tap TARIK pas di zona hijau!`;
+  document.getElementById("tarikKesulitan").textContent = c.label;
+  let zoneEl = document.getElementById("barZone");
+  zoneEl.style.left = zoneL + "%";
+  zoneEl.style.width = tarikZonaW + "%";
+  let perfectEl = document.getElementById("barZonePerfect");
+  let perfectW = tarikZonaW * 0.35;
+  perfectEl.style.left = (zoneL + tarikZonaW/2 - perfectW/2) + "%";
+  perfectEl.style.width = perfectW + "%";
+  document.getElementById("barGame").style.display = "block";
+  document.getElementById("tarikTimerBar").style.width = "100%";
+  clearInterval(tarikTimer); clearInterval(tarikTimerAnim); clearTimeout(tarikTimeout);
+  tarikTimer = setInterval(()=>{
     tarikPos += tarikDir * tarikKecepatan;
-    if(tarikPos>92){ tarikPos=92; tarikDir=-1; }
-    if(tarikPos<2){ tarikPos=2; tarikDir=1; }
-    document.getElementById("ikanGerak").style.left=tarikPos+"%";
-    document.getElementById("ikanGerak").textContent=curFish.emoji;
-  },30);
-  clearTimeout(tarikTimeout);
-  tarikTimeout=setTimeout(()=>{ if(casting) gagalMancing("Kelamaan! Ikannya lepas..."); }, 12000);
+    if(tarikPos > 92){ tarikPos = 92; tarikDir = -1; }
+    if(tarikPos < 2){ tarikPos = 2; tarikDir = 1; }
+    document.getElementById("ikanGerak").style.left = tarikPos + "%";
+    document.getElementById("ikanGerak").textContent = curFish.emoji;
+  }, 30);
+  tarikWaktuMulai = Date.now();
+  tarikTimerAnim = setInterval(()=>{
+    let sisa = tarikSisaWaktu - (Date.now() - tarikWaktuMulai);
+    let pct = Math.max(0, sisa / tarikSisaWaktu * 100);
+    document.getElementById("tarikTimerBar").style.width = pct + "%";
+  }, 50);
+  tarikTimeout = setTimeout(()=>{
+    if(casting) gagalMancing("⏰ Kelamaan! Ikannya lepas...");
+  }, tarikSisaWaktu);
 }
-function updateTantanganSkor(){
-  document.getElementById("tantanganSkor").textContent=`Berhasil: ${tarikHits}/${tarikButuh} • Meleset: ${tarikMiss}/2`;
-}
+
 function cobaTarik(){
   if(!casting) return;
+  clearInterval(tarikTimer); clearInterval(tarikTimerAnim); clearTimeout(tarikTimeout);
   let zonaAwal = zoneL;
-  let zonaAkhir = zoneL + 28;
-  let kena = tarikPos >= zonaAwal - 2 && tarikPos <= zonaAkhir;
-  if(kena){
-    tarikHits++;
-    zoneL=20+Math.random()*45;
-    document.getElementById("barZone").style.left=zoneL+"%";
-    tarikKecepatan += 0.3;
-    updateTantanganSkor();
-    if(tarikHits>=tarikButuh){ selesaiMancing(); }
-    else { toast(`✅ Kena! ${tarikHits}/${tarikButuh}`); }
-  } else {
-    tarikMiss++;
-    updateTantanganSkor();
-    if(tarikMiss>=2){ gagalMancing("Meleset 2x! Ikannya lepas... 🥲"); }
-    else { toast(`❌ Meleset! Sisa 1x lagi!`); }
+  let zonaAkhir = zoneL + tarikZonaW;
+  let perfectAwal = zoneL + tarikZonaW/2 - (tarikZonaW*0.35)/2;
+  let perfectAkhir = perfectAwal + tarikZonaW*0.35;
+  if(tarikPos >= perfectAwal && tarikPos <= perfectAkhir){
+    selesaiMancing(true);
+    return;
   }
+  if(tarikPos >= zonaAwal - 2 && tarikPos <= zonaAkhir){
+    selesaiMancing(false);
+    return;
+  }
+  gagalMancing("❌ Meleset! Ikannya lepas... 🥲");
 }
+
 function gagalMancing(pesan){
-  clearInterval(tarikTimer); clearTimeout(tarikTimeout);
+  clearInterval(tarikTimer); clearInterval(tarikTimerAnim); clearTimeout(tarikTimeout);
   casting=false; me.mancing=false;
   document.getElementById("barGame").style.display="none";
   document.getElementById("btnFish").disabled=false; document.getElementById("btnFish").innerHTML="🎣<br>Joran";
   toast(pesan || "Yah, ikannya lepas! 🥲");
 }
-function selesaiMancing(){
-  clearInterval(tarikTimer); clearTimeout(tarikTimeout);
+
+function selesaiMancing(isPerfect){
+  clearInterval(tarikTimer); clearInterval(tarikTimerAnim); clearTimeout(tarikTimeout);
   casting=false; me.mancing=false;
   document.getElementById("barGame").style.display="none";
   document.getElementById("btnFish").disabled=false; document.getElementById("btnFish").innerHTML="🎣<br>Joran";
   let berat=curFish.min+Math.random()*(curFish.max-curFish.min);
   let bonus=1+RODS[rodIdx].power/200;
+  if(isPerfect) bonus *= 1.2;
   berat=berat*bonus;
   let ikan={...curFish,berat:berat,yen:Math.round(curFish.yen*bonus)};
   inv.unshift(ikan); if(inv.length>45) inv.pop();
   xp+=curFish.xp;
+  if(isPerfect) xp += 20;
   let naik=false;
   while(xp>=xpMax){ xp-=xpMax; lv++; xpMax=Math.round(xpMax*1.4); naik=true; }
   me.lastFish = ikan.emoji;
   me.lastFishNama = ikan.nama;
   me.lastFishAt = Date.now();
   save(); renderHUD(); renderInv();
-  showModal(`<div class="fish-big">${ikan.emoji}</div><span class="tier ${ikan.tier}">${ikan.tier.toUpperCase()}</span><h2>${ikan.nama}</h2><p style="font-size:18px;font-weight:800">${berat.toFixed(2)} kg</p><p style="color:#666;font-size:13px">+${curFish.xp} XP • 💴 ${ikan.yen.toLocaleString()} Yen • Joran: ${RODS[rodIdx].nama}</p>${naik?`<p style="color:#16a34a;font-weight:800">🎉 NAIK LEVEL! Sekarang Lv ${lv}</p>`:""}<button onclick="closeModal()">Simpan ke Tas 🎒</button>`);
+  showModal(`<div class="fish-big">${ikan.emoji}</div>
+    ${isPerfect ? `<div style="background:#facc15;color:#000;padding:6px 12px;border-radius:20px;font-weight:900;display:inline-block;margin:6px 0">⭐ PERFECT! +20% YEN ⭐</div><br>` : ``}
+    <span class="tier ${ikan.tier}">${ikan.tier.toUpperCase()}</span>
+    <h2>${ikan.nama}</h2>
+    <p style="font-size:18px;font-weight:800">${berat.toFixed(2)} kg</p>
+    <p style="color:#666;font-size:13px">+${curFish.xp + (isPerfect?20:0)} XP • 💴 ${ikan.yen.toLocaleString()} Yen • Joran: ${RODS[rodIdx].nama}</p>
+    ${naik?`<p style="color:#16a34a;font-weight:800">🎉 NAIK LEVEL! Sekarang Lv ${lv}</p>`:""}
+    <button onclick="closeModal()">Simpan ke Tas 🎒</button>`);
 }
 
 let joy=document.getElementById("joy"), stick=document.getElementById("stick"), dragging=false;
