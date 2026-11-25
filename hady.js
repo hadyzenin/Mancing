@@ -22,15 +22,14 @@ const FISH = [
 let players = [];
 let me = { x: 320, y: 300, dx: 0, dy: 0, dir: 1, jalan: 0, mancing: false, lastFish: "", lastFishAt: 0, lastFishNama: "" };
 let inv = [], yen = 500, xp = 0, xpMax = 100, lv = 1, nama = "hady", myID = "FISH-DEMO", rodIdx = 0, ownedRods = [0];
-let casting = false, barVal = 50, barTimer = null, curFish = null, zoneL = 35;
+let casting = false, curFish = null, zoneL = 35;
 let animTime = 0, ripples = [], daun = [];
 for(let i=0;i<20;i++) daun.push({x: Math.random()*1000, y: Math.random()*800, s: Math.random()*2+1, speed: Math.random()*0.5+0.3});
 
-// === CEK APAKAH DI PINGGIR AIR ===
+// === TANTANGAN TARIK ===
+let tarikPos = 50, tarikDir = 1, tarikHits = 0, tarikButuh = 3, tarikMiss = 0, tarikTimer = null, tarikTimeout = null, tarikKecepatan = 2.2;
+
 function lagiDiAir(){
-  // Air bawah: y deket bawah layar (laut bawah)
-  // Air atas: y deket atas layar (laut atas)
-  // Air kiri/kanan: x deket pinggir layar
   let diAirBawah = me.y > innerHeight - 145;
   let diAirAtas = me.y < 115;
   let diAirKiri = me.x < 65;
@@ -38,7 +37,6 @@ function lagiDiAir(){
   return diAirBawah || diAirAtas || diAirKiri || diAirKanan;
 }
 function posisiRiak(){
-  // Riak selalu di air, bukan di darat
   if(me.y > innerHeight - 145) return { x: me.x + 10, y: innerHeight - 60 };
   if(me.y < 115) return { x: me.x + 10, y: 12 };
   if(me.x < 65) return { x: 12, y: me.y + 20 };
@@ -56,14 +54,10 @@ async function save(){
   try{ await apiPost("/api/save", { id: myID, data: { nama, inv, yen, xp, xpMax, lv, rodIdx, ownedRods } }); }catch(e){}
 }
 function getKey(id){ return "mancing_" + id; }
-
 async function buatIDBaru(){
   let nm = document.getElementById("inputNama").value.trim() || "Pemancing";
   let id = "FISH-" + Math.random().toString(36).slice(2,8).toUpperCase();
-  try{
-    let res = await apiPost("/api/buat-id", { nama: nm });
-    if(res.id) id = res.id;
-  }catch(e){}
+  try{ let res = await apiPost("/api/buat-id", { nama: nm }); if(res.id) id = res.id; }catch(e){}
   document.getElementById("inputID").value = id;
   document.getElementById("idBaruText").textContent = id;
   document.getElementById("idBaruBox").style.display = "block";
@@ -79,27 +73,14 @@ async function login(){
   let nmEl = document.getElementById("inputNama");
   let id = idEl.value.trim().toUpperCase().replace(/[^A-Z0-9-]/g, "");
   let nm = nmEl.value.trim() || "Pemancing";
-  if(id.length < 6){
-    id = "FISH-" + Math.random().toString(36).slice(2,8).toUpperCase();
-    idEl.value = id;
-    toast("ID otomatis dibuat: " + id);
-  }
+  if(id.length < 6){ id = "FISH-" + Math.random().toString(36).slice(2,8).toUpperCase(); idEl.value = id; toast("ID otomatis dibuat: " + id); }
   if(!id.startsWith("FISH-")) id = "FISH-" + id;
-  idEl.value = id;
-  myID = id; nama = nm;
+  idEl.value = id; myID = id; nama = nm;
   try{
-    let ctrl = new AbortController();
-    setTimeout(()=>ctrl.abort(), 2000);
-    let res = await fetch("/api/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id, nama: nm }),
-      signal: ctrl.signal
-    }).then(r=>r.json());
+    let ctrl = new AbortController(); setTimeout(()=>ctrl.abort(), 2000);
+    let res = await fetch("/api/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, nama: nm }), signal: ctrl.signal }).then(r=>r.json());
     let d = res.data;
-    if(d){
-      inv=d.inv||[]; yen=d.yen ?? 500; xp=d.xp||0; xpMax=d.xpMax||100; lv=d.lv||1; rodIdx=d.rodIdx||0; ownedRods=d.ownedRods||[0];
-    }
+    if(d){ inv=d.inv||[]; yen=d.yen ?? 500; xp=d.xp||0; xpMax=d.xpMax||100; lv=d.lv||1; rodIdx=d.rodIdx||0; ownedRods=d.ownedRods||[0]; }
   }catch(e){
     let lama = JSON.parse(localStorage.getItem(getKey(id))||"null");
     if(lama){ inv=lama.inv||[]; yen=lama.yen ?? 500; xp=lama.xp||0; xpMax=lama.xpMax||100; lv=lama.lv||1; rodIdx=lama.rodIdx||0; ownedRods=lama.ownedRods||[0]; }
@@ -129,7 +110,6 @@ function renderInv(){
   el.innerHTML+=`<div class="slot" onclick="openMenu()" style="font-size:20px">🎒<span>${inv.length}/45</span></div>`;
 }
 function toast(t){ let e=document.getElementById("toast"); e.textContent=t; e.style.display="block"; setTimeout(()=>e.style.display="none",3000); }
-
 function openMenu(){
   let rodsHtml=RODS.map((r,i)=>{
     let punya = ownedRods.includes(i);
@@ -150,8 +130,7 @@ function beliJoran(i){
   if(lv<r.lv){ toast("Butuh Lv "+r.lv); return; }
   if(yen<r.harga){ toast("Yen kurang! Butuh 💴 "+r.harga.toLocaleString()); return; }
   yen-=r.harga; ownedRods.push(i); rodIdx=i; save(); renderHUD();
-  toast("🎉 Berhasil beli "+r.nama+"!");
-  openMenu();
+  toast("🎉 Berhasil beli "+r.nama+"!"); openMenu();
 }
 function openTas(){ showModal(`<h2>🐟 Koleksi Ikan</h2><div class="list">${window._fishHtml||"Kosong"}</div><button onclick="closeModal()">Tutup</button><button onclick="openJual()" style="background:#22c55e">Jual Semua Ikan</button>`); }
 function openJual(){
@@ -166,17 +145,10 @@ function closeModal(){ document.getElementById("modal").style.display="none"; }
 
 function mulaiMancing(){
   if(casting) return;
-
-  // === CUMA BISA MANCING DI AIR ===
-  if(!lagiDiAir()){
-    toast("🚫 Ke pinggir air dulu! Mancing cuma bisa di air 🌊");
-    return;
-  }
-
+  if(!lagiDiAir()){ toast("🚫 Ke pinggir air dulu! Mancing cuma bisa di air 🌊"); return; }
   casting=true; me.mancing=true;
   document.getElementById("btnFish").disabled=true;
   document.getElementById("btnFish").innerHTML="⏳<br>Lempar...";
-  toast("Joran dilempar ke air... tunggu ikan nyangkut!");
   let riak = posisiRiak();
   ripples.push({x: riak.x, y: riak.y, r: 2, alpha: 1});
   setTimeout(()=>{
@@ -184,27 +156,68 @@ function mulaiMancing(){
     let pool=[]; FISH.forEach(f=>{ let w=f.w; if(f.tier==="Rare") w*=1+power/100; if(f.tier==="Epic") w*=1+power/150; if(f.tier==="Legendary") w*=1+power/200; pool.push({f,w}); });
     let total=pool.reduce((a,b)=>a+b.w,0); let r=Math.random()*total; curFish=pool[0].f;
     for(let p of pool){ if(r<p.w){curFish=p.f;break;} r-=p.w; }
-    document.getElementById("barGame").style.display="flex";
-    barVal=50; zoneL=30+Math.random()*20;
-    document.getElementById("barZone").style.left=zoneL+"%";
-    clearInterval(barTimer);
-    barTimer=setInterval(()=>{
-      barVal-=1.2; if(barVal<0) barVal=0;
-      document.getElementById("barFill").style.width=barVal+"%";
-      if(barVal<=0){ gagalMancing(); }
-    },80);
-    setTimeout(()=>{ if(casting){ selesaiMancing(); } },6000);
+    mulaiTantangan();
   },1200+Math.random()*1000);
 }
-function tapBar(){ barVal=Math.min(100,barVal+9); document.getElementById("barFill").style.width=barVal+"%"; }
-function gagalMancing(){
-  clearInterval(barTimer); casting=false; me.mancing=false;
+
+function mulaiTantangan(){
+  if(curFish.tier==="Common") { tarikButuh=2; tarikKecepatan=1.6; }
+  else if(curFish.tier==="Uncommon") { tarikButuh=3; tarikKecepatan=2.0; }
+  else if(curFish.tier==="Rare") { tarikButuh=4; tarikKecepatan=2.6; }
+  else if(curFish.tier==="Epic") { tarikButuh=5; tarikKecepatan=3.2; }
+  else { tarikButuh=6; tarikKecepatan=3.8; }
+  tarikHits=0; tarikMiss=0; tarikPos=50; tarikDir=1;
+  zoneL=30+Math.random()*20;
+  document.getElementById("tantanganIkan").textContent=curFish.emoji;
+  document.getElementById("tantanganNama").textContent=curFish.nama+" Nyangkut!";
+  document.getElementById("tantanganInfo").textContent=`Tarik ${tarikButuh}x pas di zona hijau! Meleset 2x = lepas!`;
+  document.getElementById("barZone").style.left=zoneL+"%";
+  document.getElementById("barGame").style.display="block";
+  updateTantanganSkor();
+  clearInterval(tarikTimer);
+  tarikTimer=setInterval(()=>{
+    tarikPos += tarikDir * tarikKecepatan;
+    if(tarikPos>92){ tarikPos=92; tarikDir=-1; }
+    if(tarikPos<2){ tarikPos=2; tarikDir=1; }
+    document.getElementById("ikanGerak").style.left=tarikPos+"%";
+    document.getElementById("ikanGerak").textContent=curFish.emoji;
+  },30);
+  clearTimeout(tarikTimeout);
+  tarikTimeout=setTimeout(()=>{ if(casting) gagalMancing("Kelamaan! Ikannya lepas..."); }, 12000);
+}
+function updateTantanganSkor(){
+  document.getElementById("tantanganSkor").textContent=`Berhasil: ${tarikHits}/${tarikButuh} • Meleset: ${tarikMiss}/2`;
+}
+function cobaTarik(){
+  if(!casting) return;
+  let zonaAwal = zoneL;
+  let zonaAkhir = zoneL + 28;
+  let kena = tarikPos >= zonaAwal - 2 && tarikPos <= zonaAkhir;
+  if(kena){
+    tarikHits++;
+    zoneL=20+Math.random()*45;
+    document.getElementById("barZone").style.left=zoneL+"%";
+    tarikKecepatan += 0.3;
+    updateTantanganSkor();
+    if(tarikHits>=tarikButuh){ selesaiMancing(); }
+    else { toast(`✅ Kena! ${tarikHits}/${tarikButuh}`); }
+  } else {
+    tarikMiss++;
+    updateTantanganSkor();
+    if(tarikMiss>=2){ gagalMancing("Meleset 2x! Ikannya lepas... 🥲"); }
+    else { toast(`❌ Meleset! Sisa 1x lagi!`); }
+  }
+}
+function gagalMancing(pesan){
+  clearInterval(tarikTimer); clearTimeout(tarikTimeout);
+  casting=false; me.mancing=false;
   document.getElementById("barGame").style.display="none";
   document.getElementById("btnFish").disabled=false; document.getElementById("btnFish").innerHTML="🎣<br>Joran";
-  toast("Yah, ikannya lepas! 🥲");
+  toast(pesan || "Yah, ikannya lepas! 🥲");
 }
 function selesaiMancing(){
-  clearInterval(barTimer); casting=false; me.mancing=false;
+  clearInterval(tarikTimer); clearTimeout(tarikTimeout);
+  casting=false; me.mancing=false;
   document.getElementById("barGame").style.display="none";
   document.getElementById("btnFish").disabled=false; document.getElementById("btnFish").innerHTML="🎣<br>Joran";
   let berat=curFish.min+Math.random()*(curFish.max-curFish.min);
@@ -218,7 +231,6 @@ function selesaiMancing(){
   me.lastFish = ikan.emoji;
   me.lastFishNama = ikan.nama;
   me.lastFishAt = Date.now();
-  me.lastFishTier = ikan.tier;
   save(); renderHUD(); renderInv();
   showModal(`<div class="fish-big">${ikan.emoji}</div><span class="tier ${ikan.tier}">${ikan.tier.toUpperCase()}</span><h2>${ikan.nama}</h2><p style="font-size:18px;font-weight:800">${berat.toFixed(2)} kg</p><p style="color:#666;font-size:13px">+${curFish.xp} XP • 💴 ${ikan.yen.toLocaleString()} Yen • Joran: ${RODS[rodIdx].nama}</p>${naik?`<p style="color:#16a34a;font-weight:800">🎉 NAIK LEVEL! Sekarang Lv ${lv}</p>`:""}<button onclick="closeModal()">Simpan ke Tas 🎒</button>`);
 }
@@ -249,9 +261,7 @@ function gambarKarakter(x, y, namaP, dir, jalan, mancing, isMe, fishEmoji, fishN
   ctx.fillStyle="#3b2314"; ctx.fillRect(-8, -18, 16, 5); ctx.fillRect(-8, -18, 3, 10);
   ctx.fillStyle="#000"; ctx.fillRect(2, -11, 3, 3);
   ctx.fillStyle="#ffd93d"; ctx.fillRect(-10, -21, 20, 4); ctx.fillRect(-5, -26, 10, 6);
-  if(lagiPamer){
-    ctx.fillStyle="#ffdbac"; ctx.fillRect(-12, -22, 4, 10); ctx.fillRect(8, -22, 4, 10);
-  }
+  if(lagiPamer){ ctx.fillStyle="#ffdbac"; ctx.fillRect(-12, -22, 4, 10); ctx.fillRect(8, -22, 4, 10); }
   if(mancing){
     ctx.strokeStyle="#8b4513"; ctx.lineWidth=2;
     ctx.beginPath(); ctx.moveTo(8, 2); ctx.lineTo(26, -22+Math.sin(animTime*6)*2); ctx.stroke();
@@ -267,9 +277,7 @@ function gambarKarakter(x, y, namaP, dir, jalan, mancing, isMe, fishEmoji, fishN
   if(lagiPamer){
     let goyang = Math.sin(animTime*8)*3;
     let scale = 1 + Math.sin(animTime*8)*0.08;
-    ctx.save();
-    ctx.translate(x, y-52+lompat);
-    ctx.scale(scale, scale);
+    ctx.save(); ctx.translate(x, y-52+lompat); ctx.scale(scale, scale);
     ctx.font="32px serif"; ctx.textAlign="center";
     ctx.fillStyle="rgba(255,255,255,0.9)";
     ctx.beginPath(); ctx.arc(0, 0, 22, 0, 0, Math.PI*2); ctx.fill();
@@ -280,13 +288,11 @@ function gambarKarakter(x, y, namaP, dir, jalan, mancing, isMe, fishEmoji, fishN
     ctx.strokeText(fishNama, x, y-78+lompat);
     ctx.fillText(fishNama, x, y-78+lompat);
   }
-  // NAMA TANPA LV, TANPA ICON PANCING DI ATAS KEPALA
   ctx.font="bold 11px sans-serif"; ctx.textAlign="center";
   ctx.fillStyle="#fff"; ctx.strokeStyle="rgba(0,0,0,0.7)"; ctx.lineWidth=3;
   ctx.strokeText(namaP, x, y-32);
   ctx.fillText(namaP, x, y-32);
   ctx.textAlign="left";
-  // === ICON 🎣 DI ATAS KEPALA UDAH DIHAPUS DI SINI ===
 }
 function gambarPohon(x, y, s){
   let goyang = Math.sin(animTime*1.5 + x)*2;
@@ -349,14 +355,12 @@ function draw(){
   requestAnimationFrame(draw);
 }
 setInterval(()=>{ let d=new Date(); document.getElementById("jam").textContent=d.toLocaleDateString("id-ID",{weekday:"short",day:"numeric",month:"short"})+" · "+d.toLocaleTimeString("id-ID",{hour:"2-digit",minute:"2-digit"})+" WITA"; },1000);
-
 let lastID = localStorage.getItem("mancing_lastID");
 if(lastID){
   document.getElementById("inputID").value = lastID;
   let d = JSON.parse(localStorage.getItem(getKey(lastID)) || "null");
   if(d) document.getElementById("inputNama").value = d.nama;
 }
-
 const firebaseConfig = {
   apiKey: "AIzaSyCt1hGe42I6Xg9ji9IDt9vbcnbZQYFw1Vw",
   authDomain: "hady-c34e8.firebaseapp.com",
