@@ -20,11 +20,11 @@ const FISH = [
 ];
 
 const WORLD_W = 1200, WORLD_H = 1800;
-const ZOOM = 2.0; // === ZOOM 2x ===
+const ZOOM = 2.0;
 let camX = 0, camY = 0;
 
 let players = [];
-let me = { x: 600, y: WORLD_H-115, dx: 0, dy: 0, dir: 1, jalan: 0, mancing: false, lastFish: "", lastFishAt: 0, lastFishNama: "" };
+let me = { x: 600, y: WORLD_H-100, dx: 0, dy: 0, dir: 1, jalan: 0, mancing: false, lastFish: "", lastFishAt: 0, lastFishNama: "", chatText: "", chatAt: 0 };
 let inv = [], yen = 500, xp = 0, xpMax = 100, lv = 1, nama = "hady", myID = "FISH-DEMO", rodIdx = 0, ownedRods = [0];
 let casting = false, curFish = null, zoneL = 35;
 let animTime = 0, ripples = [], daun = [];
@@ -48,24 +48,62 @@ function mulaiCooldown(){
   }, 100);
 }
 
+// === CHAT GLOBAL - COOLDOWN 5 DETIK ===
+let lastChatAt = 0, chatOpen = false;
+function toggleChat(){
+  chatOpen = !chatOpen;
+  document.getElementById("chatBox").style.display = chatOpen ? "block" : "none";
+  if(chatOpen){
+    document.getElementById("chatBadge").style.display = "none";
+    setTimeout(()=>document.getElementById("chatInput").focus(), 100);
+  }
+}
+function kirimChat(){
+  let inp = document.getElementById("chatInput");
+  let teks = inp.value.trim();
+  if(!teks) return;
+  let sisa = 5000 - (Date.now() - lastChatAt);
+  if(sisa > 0){ toast(`⏳ Chat cooldown ${Math.ceil(sisa/1000)} detik lagi...`); return; }
+  if(!db){ toast("Chat belum tersambung..."); return; }
+  lastChatAt = Date.now();
+  inp.value = "";
+  document.getElementById("chatCooldown").textContent = "⏳ Cooldown 5 detik...";
+  setTimeout(()=>{ document.getElementById("chatCooldown").textContent = ""; }, 5000);
+  // Bubble di atas kepala sendiri
+  me.chatText = teks; me.chatAt = Date.now();
+  db.ref("chat").push({ nama, teks, waktu: Date.now(), id: myID });
+}
+function tambahChatKeList(namaPengirim, teks, isMe){
+  let list = document.getElementById("chatList");
+  if(!list) return;
+  let div = document.createElement("div");
+  div.className = "chat-msg" + (isMe ? " me" : "");
+  div.innerHTML = `<b>${namaPengirim}:</b> ${teks.replace(/</g,"&lt;")}`;
+  list.appendChild(div);
+  while(list.children.length > 30) list.removeChild(list.firstChild);
+  list.scrollTop = list.scrollHeight;
+  if(!chatOpen) document.getElementById("chatBadge").style.display = "block";
+}
+
 let tarikPos = 50, tarikDir = 1, tarikRaf = null, tarikTimeout = null, tarikKecepatan = 2, tarikZonaW = 30, tarikSisaWaktu = 8000, tarikWaktuMulai = 0, tarikLastFrame = 0, tarikBarEl = null, tarikIkanEl = null, tarikTimerEl = null;
 
-// === ZONA MANCING DIPERSEMPIT: CUMA 20px NEMPEL GARIS PUTIH ===
-// Air: atas 0-100, bawah WORLD_H-100 - WORLD_H, kiri 0-100, kanan WORLD_W-100 - WORLD_W
-// Boleh mancing CUMA kalau kaki pas di: bawah y 105-125 dari bawah, atas y 105-125 dari atas, dst.
-// Posisi hady di screenshot kamu (di rumput, agak jauh dari air) sekarang GAK MASUK zona ini.
+// === ZONA MANCING FIX ATAS: KAKI HARUS NYEMPLUNG KE AIR, BUKAN DI RUMPUT ===
+// Air atas: y 0-100, garis putih di y=100. Jadi boleh mancing cuma kalau y 88-112 (kaki nyentuh air)
+// Sebelumnya 105-128 -> itu masih rumput hijau di bawah air, makanya di screenshot cuki di rumput bisa mancing
+// Air bawah: y WORLD_H-100 - WORLD_H, boleh kalau y WORLD_H-112 - WORLD_H-88
+// Air kiri: x 0-100, boleh kalau x 88-112. Air kanan: x WORLD_W-100 - WORLD_W, boleh kalau x WORLD_W-112 - WORLD_W-88
 function lagiDiAir(){
-  let diAtas  = me.y >= 105 && me.y <= 128;
-  let diBawah = me.y >= WORLD_H-128 && me.y <= WORLD_H-105;
-  let diKiri  = me.x >= 105 && me.x <= 128;
-  let diKanan = me.x >= WORLD_W-128 && me.x <= WORLD_W-105;
+  let diAtas  = me.y >= 88 && me.y <= 112;
+  let diBawah = me.y >= WORLD_H-112 && me.y <= WORLD_H-88;
+  let diKiri  = me.x >= 88 && me.x <= 112;
+  let diKanan = me.x >= WORLD_W-112 && me.x <= WORLD_W-88;
   return diAtas || diBawah || diKiri || diKanan;
 }
 function posisiRiak(){
-  if(me.y <= 128) return { x: me.x + 10, y: 50 };
-  if(me.y >= WORLD_H-128) return { x: me.x + 10, y: WORLD_H-50 };
-  if(me.x <= 128) return { x: 50, y: me.y + 20 };
-  if(me.x >= WORLD_W-128) return { x: WORLD_W-50, y: me.y + 20 };
+  if(me.y <= 112) return { x: me.x + 10, y: 50 };
+  if(me.y >= WORLD_H-112) return { x: me.x + 10, y: WORLD_H-50 };
+  if(me.x <= 112) return { x: 50, y: me.y + 20 };
+  if(me.x >= WORLD_W-112) return { x: WORLD_W-50, y: me.y + 20 };
   return { x: me.x + 30, y: me.y + 40 };
 }
 
@@ -115,10 +153,12 @@ async function login(){
 function startGame(){
   document.getElementById("login").style.display="none";
   document.getElementById("game").style.display="block";
-  me.x = WORLD_W/2; me.y = WORLD_H-115;
+  me.x = WORLD_W/2; me.y = WORLD_H-100;
   camX = me.x - (innerWidth/2)/ZOOM; camY = me.y - (innerHeight/2)/ZOOM;
   save(); renderHUD(); renderInv(); draw();
-  toast("Jalan sampe nempel garis putih pinggir air! 🌊");
+  toast("Jalan sampe kakimu nyemplung ke air! 🌊");
+  // Enter di input chat = kirim
+  document.getElementById("chatInput").addEventListener("keydown", e=>{ if(e.key==="Enter") kirimChat(); });
 }
 function renderHUD(){
   document.getElementById("pNama").textContent=nama;
@@ -182,7 +222,7 @@ function closeModal(){ document.getElementById("modal").style.display="none"; }
 function mulaiMancing(){
   if(casting) return;
   if(sisaCooldown() > 0){ toast(`⏳ Tunggu ${Math.ceil(sisaCooldown()/1000)} detik lagi...`); return; }
-  if(!lagiDiAir()){ toast("🚫 Masih di darat! Nempel garis putih pinggir air dulu 🌊"); return; }
+  if(!lagiDiAir()){ toast("🚫 Masih di darat! Kakimu harus nyemplung ke air dulu 🌊"); return; }
   casting=true; me.mancing=true;
   document.getElementById("btnFish").disabled=true;
   document.getElementById("btnFish").innerHTML="⏳<br>Lempar...";
@@ -343,13 +383,21 @@ joy.addEventListener("mousedown",e=>{dragging=true; moveJoy(e)}); window.addEven
 
 const cv=document.getElementById("cv"), ctx=cv.getContext("2d");
 let cvW = 0, cvH = 0;
-function gambarKarakter(x, y, namaP, dir, jalan, mancing, isMe, fishEmoji, fishNama, fishAt){
+function gambarKarakter(x, y, namaP, dir, jalan, mancing, isMe, fishEmoji, fishNama, fishAt, chatText, chatAt){
   let bob = Math.sin(animTime*4 + x)*1.5;
   if(jalan>0.1) bob = Math.abs(Math.sin(animTime*10))*3;
   let lompat = 0;
   let sisaIkan = fishAt ? (Date.now() - fishAt) : 99999;
   let lagiPamer = fishEmoji && sisaIkan < 4000;
   if(lagiPamer) lompat = -Math.abs(Math.sin(animTime*6))*6;
+  // Bubble chat di atas kepala
+  if(chatText && Date.now() - chatAt < 4000){
+    ctx.font="bold 11px sans-serif"; ctx.textAlign="center";
+    let w = ctx.measureText(chatText).width + 16;
+    ctx.fillStyle="rgba(255,255,255,0.95)";
+    ctx.beginPath(); ctx.roundRect(x - w/2, y-70, w, 22, 10); ctx.fill();
+    ctx.fillStyle="#111"; ctx.fillText(chatText, x, y-55);
+  }
   ctx.fillStyle="rgba(0,0,0,0.25)";
   ctx.beginPath(); ctx.ellipse(x, y+14, 14, 4, 0, 0, Math.PI*2); ctx.fill();
   ctx.save(); ctx.translate(x, y+bob+lompat); ctx.scale(dir, 1);
@@ -411,25 +459,19 @@ function draw(){
     cvW = innerWidth; cvH = innerHeight;
   }
   animTime += 0.016;
-
-  // === CEK TIAP FRAME: kalau lagi mancing tapi udah gak di zona air = batal ===
-  // Ini nangkep kasus di screenshot: start di air, terus jalan dikit ke rumput, tetep keitung mancing
   if(casting && !lagiDiAir()){
     batalMancing("🚫 Kamu keluar dari pinggir air! Mancing batal 🥲");
     return requestAnimationFrame(draw);
   }
-
   let targetCamX = me.x - (cvW/2)/ZOOM;
   let targetCamY = me.y - (cvH/2)/ZOOM;
   targetCamX = Math.max(0, Math.min(WORLD_W - cvW/ZOOM, targetCamX));
   targetCamY = Math.max(0, Math.min(WORLD_H - cvH/ZOOM, targetCamY));
   camX += (targetCamX - camX) * 0.18;
   camY += (targetCamY - camY) * 0.18;
-
   ctx.save();
   ctx.scale(ZOOM, ZOOM);
   ctx.translate(-camX, -camY);
-
   ctx.fillStyle="#f6d67a"; ctx.fillRect(0,0,WORLD_W,WORLD_H);
   let grad = ctx.createLinearGradient(0,0,0,WORLD_H);
   grad.addColorStop(0,"#8ed860"); grad.addColorStop(1,"#5cb84a");
@@ -446,10 +488,10 @@ function draw(){
   ctx.fillRect(100, 100, WORLD_W-200, 3);
   ctx.fillRect(100, 100, 3, WORLD_H-200);
   ctx.fillRect(WORLD_W-100, 100, 3, WORLD_H-200);
-  // Zona mancing keliatan: pasir terang di garis putih
-  ctx.fillStyle="rgba(255,255,255,0.25)";
-  ctx.fillRect(100, WORLD_H-128, WORLD_W-200, 23);
-  ctx.fillRect(100, 105, WORLD_W-200, 23);
+  // Zona mancing: airnya terang, rumputnya gelap - biar keliatan bedanya
+  ctx.fillStyle="rgba(255,255,255,0.28)";
+  ctx.fillRect(100, 88, WORLD_W-200, 24);
+  ctx.fillRect(100, WORLD_H-112, WORLD_W-200, 24);
   ctx.fillStyle="rgba(255,255,255,0.5)";
   for(let i=0;i<WORLD_W;i+=60){
     let y = WORLD_H-78 + Math.sin(animTime*2 + i*0.1)*3;
@@ -479,32 +521,28 @@ function draw(){
     if(d.x>WORLD_W) d.x=0;
     ctx.font="12px serif"; ctx.fillText("🍃", d.x, d.y);
   });
-  // === PLAYER LAIN LEBIH SMOOTH: lerp kecil + prediksi ===
   players.forEach(p=>{
     let tx = p.tx ?? p.x, ty = p.ty ?? p.y;
-    // Prediksi dikit ke arah gerak biar gak ketinggalan
     let vx = (tx - (p.px ?? tx)) * 0.5;
     let vy = (ty - (p.py ?? ty)) * 0.5;
     p.px = tx; p.py = ty;
     let targetX = tx + vx, targetY = ty + vy;
     p.x += (targetX - p.x) * 0.18;
     p.y += (targetY - p.y) * 0.18;
-    // Snap kalau udah kejauhan banget (baru login / lag parah)
     if(Math.abs(targetX - p.x) > 120){ p.x = targetX; }
     if(Math.abs(targetY - p.y) > 120){ p.y = targetY; }
     let dx = targetX - p.x;
     if(Math.abs(dx) > 1.5){ p.jalan = 1; p.dir = dx > 0 ? 1 : -1; } else { p.jalan = 0; }
-    gambarKarakter(p.x, p.y, p.nama, p.dir || 1, p.jalan, p.mancing, false, p.lastFish, p.lastFishNama, p.lastFishAt);
+    gambarKarakter(p.x, p.y, p.nama, p.dir || 1, p.jalan, p.mancing, false, p.lastFish, p.lastFishNama, p.lastFishAt, p.chatText, p.chatAt);
   });
   let jalan = Math.abs(me.dx)+Math.abs(me.dy);
   me.jalan = jalan;
-  gambarKarakter(me.x, me.y, nama, me.dir, jalan, me.mancing, true, me.lastFish, me.lastFishNama, me.lastFishAt);
+  gambarKarakter(me.x, me.y, nama, me.dir, jalan, me.mancing, true, me.lastFish, me.lastFishNama, me.lastFishAt, me.chatText, me.chatAt);
   if(!casting){ me.x+=me.dx; me.y+=me.dy; }
-  me.x=Math.max(110,Math.min(WORLD_W-110,me.x));
-  me.y=Math.max(110,Math.min(WORLD_H-110,me.y));
-
+  // Batas jalan: boleh sampe kaki nyemplung air (88), gak boleh tenggelam ke tengah air
+  me.x=Math.max(88,Math.min(WORLD_W-88,me.x));
+  me.y=Math.max(88,Math.min(WORLD_H-88,me.y));
   ctx.restore();
-
   if(!casting && sisaCooldown() <= 0){
     let btn = document.getElementById("btnFish");
     if(btn){
@@ -534,10 +572,9 @@ let db = null;
 try{ firebase.initializeApp(firebaseConfig); db = firebase.database(); }catch(e){}
 setInterval(()=>{
   if(!db || !myID || myID==="FISH-DEMO") return;
-  // Kirim tiap 80ms + presisi 10000 biar player lain gak lompat-lompat
   let nx = Math.round(me.x / WORLD_W * 10000);
   let ny = Math.round(me.y / WORLD_H * 10000);
-  db.ref("online/" + myID).set({ nama, x: nx, y: ny, lv, mancing: me.mancing, dir: me.dir, lastFish: me.lastFish || "", lastFishNama: me.lastFishNama || "", lastFishAt: me.lastFishAt || 0, lastSeen: Date.now() });
+  db.ref("online/" + myID).set({ nama, x: nx, y: ny, lv, mancing: me.mancing, dir: me.dir, lastFish: me.lastFish || "", lastFishNama: me.lastFishNama || "", lastFishAt: me.lastFishAt || 0, chatText: me.chatText || "", chatAt: me.chatAt || 0, lastSeen: Date.now() });
 }, 80);
 if(db){
   db.ref("online").on("value", (snap)=>{
@@ -554,12 +591,26 @@ if(db){
         lama.tx = px; lama.ty = py; lama.nama = p.nama;
         lama.mancing = p.mancing; lama.dir = p.dir || 1;
         lama.lastFish = p.lastFish; lama.lastFishNama = p.lastFishNama; lama.lastFishAt = p.lastFishAt;
+        lama.chatText = p.chatText || ""; lama.chatAt = p.chatAt || 0;
         lama.lastSeen = sekarang;
       } else {
-        players.push({id, nama:p.nama, x:px, y:py, tx:px, ty:py, px:px, py:py, dir:p.dir||1, jalan:0, mancing:p.mancing, lastFish:p.lastFish, lastFishNama:p.lastFishNama, lastFishAt:p.lastFishAt, lastSeen: sekarang});
+        players.push({id, nama:p.nama, x:px, y:py, tx:px, ty:py, px:px, py:py, dir:p.dir||1, jalan:0, mancing:p.mancing, lastFish:p.lastFish, lastFishNama:p.lastFishNama, lastFishAt:p.lastFishAt, chatText:p.chatText||"", chatAt:p.chatAt||0, lastSeen: sekarang});
       }
     });
     players = players.filter(p=> data[p.id] && sekarang - data[p.id].lastSeen < 5000);
+  });
+  // === DENGERIN CHAT GLOBAL ===
+  db.ref("chat").limitToLast(30).on("child_added", (snap)=>{
+    let c = snap.val();
+    if(!c) return;
+    if(Date.now() - c.waktu > 60000) return;
+    tambahChatKeList(c.nama, c.teks, c.id === myID);
+    // Bubble di atas kepala pengirim
+    if(c.id === myID){ me.chatText = c.teks; me.chatAt = Date.now(); }
+    else {
+      let p = players.find(q=>q.id===c.id);
+      if(p){ p.chatText = c.teks; p.chatAt = Date.now(); }
+    }
   });
 }
 window.addEventListener("beforeunload", ()=>{
