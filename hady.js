@@ -48,17 +48,27 @@ function mulaiCooldown(){
   }, 100);
 }
 
-// === CHAT GLOBAL - CUMA PAPAN TIK + KIRIM, TEXT DI BAWAH PULAU TENGAH LAUT ===
+// === CHAT GLOBAL - TOMBOL KECIL JADI PAPAN TIK, KLIK AREA KOSONG = NUTUP ===
 let lastChatAt = 0, chatOpen = false;
-function toggleChat(){
+function toggleChat(e){
+  if(e) e.stopPropagation();
   chatOpen = !chatOpen;
   document.getElementById("chatInputBar").style.display = chatOpen ? "flex" : "none";
   if(chatOpen){
     document.getElementById("chatBadge").style.display = "none";
     setTimeout(()=>document.getElementById("chatInput").focus(), 100);
+  } else {
+    document.getElementById("chatInput").blur();
   }
 }
-function kirimChat(){
+function tutupChat(){
+  if(!chatOpen) return;
+  chatOpen = false;
+  document.getElementById("chatInputBar").style.display = "none";
+  document.getElementById("chatInput").blur();
+}
+function kirimChat(e){
+  if(e) e.stopPropagation();
   let inp = document.getElementById("chatInput");
   let teks = inp.value.trim();
   if(!teks) return;
@@ -88,9 +98,6 @@ function tambahChatKeList(namaPengirim, teks, isMe){
 let tarikPos = 50, tarikDir = 1, tarikRaf = null, tarikTimeout = null, tarikKecepatan = 2, tarikZonaW = 30, tarikSisaWaktu = 8000, tarikWaktuMulai = 0, tarikLastFrame = 0, tarikBarEl = null, tarikIkanEl = null, tarikTimerEl = null;
 
 // === ZONA MANCING: KAKI HARUS NYEMPLUNG KE AIR, BUKAN DI RUMPUT ===
-// Air atas: y 0-100, garis putih di y=100. Boleh mancing cuma kalau y 88-112
-// Air bawah: y WORLD_H-100 - WORLD_H, boleh kalau y WORLD_H-112 - WORLD_H-88
-// Air kiri: x 0-100, boleh kalau x 88-112. Air kanan: x WORLD_W-100 - WORLD_W, boleh kalau x WORLD_W-112 - WORLD_W-88
 function lagiDiAir(){
   let diAtas  = me.y >= 88 && me.y <= 112;
   let diBawah = me.y >= WORLD_H-112 && me.y <= WORLD_H-88;
@@ -157,6 +164,17 @@ function startGame(){
   save(); renderHUD(); renderInv(); draw();
   toast("Jalan sampe kakimu nyemplung ke air! 🌊");
   document.getElementById("chatInput").addEventListener("keydown", e=>{ if(e.key==="Enter") kirimChat(); });
+  // === KLIK AREA KOSONG MANA AJA = NUTUP PAPAN TIK ===
+  let gameEl = document.getElementById("game");
+  gameEl.addEventListener("click", (e)=>{
+    if(!chatOpen) return;
+    if(e.target.closest("#chatInputBar") || e.target.closest("#btnChat") || e.target.closest("#joy") || e.target.closest("#btnFish") || e.target.closest("#modal")) return;
+    tutupChat();
+  });
+  // Biar tap di canvas juga nutup (di HP, click kadang gak ke-trigger kalau canvas)
+  document.getElementById("cv").addEventListener("touchstart", ()=>{
+    if(chatOpen) tutupChat();
+  });
 }
 function renderHUD(){
   document.getElementById("pNama").textContent=nama;
