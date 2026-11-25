@@ -31,7 +31,6 @@ let casting = false, curFish = null, zoneL = 35;
 let animTime = 0, ripples = [], daun = [];
 for(let i=0;i<30;i++) daun.push({x: Math.random()*WORLD_W, y: Math.random()*WORLD_H, s: Math.random()*2+1, speed: Math.random()*0.5+0.3});
 
-// Ikan-ikan kecil berenang di laut biar hidup
 let ikanLaut = [];
 for(let i=0;i<10;i++){
   ikanLaut.push({
@@ -74,7 +73,6 @@ function mulaiCooldown(){
   }, 100);
 }
 
-// === CHAT GLOBAL ===
 let lastChatAt = 0, chatOpen = false;
 function toggleChat(e){
   if(e) e.stopPropagation();
@@ -123,7 +121,6 @@ function tambahChatKeList(namaPengirim, teks, isMe){
 
 let tarikPos = 50, tarikDir = 1, tarikRaf = null, tarikTimeout = null, tarikKecepatan = 2, tarikZonaW = 30, tarikSisaWaktu = 8000, tarikWaktuMulai = 0, tarikLastFrame = 0, tarikBarEl = null, tarikIkanEl = null, tarikTimerEl = null;
 
-// === FIX TEMBUS LAUT ===
 function lagiDiAir(){
   let diBawah = me.y >= WORLD_H-108 && me.y <= WORLD_H-92;
   let diKiri  = me.x >= 92 && me.x <= 108 && me.y > 160;
@@ -471,7 +468,6 @@ joy.addEventListener("mousedown",e=>{dragging=true; moveJoy(e)}); window.addEven
 const cv=document.getElementById("cv"), ctx=cv.getContext("2d");
 let cvW = 0, cvH = 0;
 
-// === IKAN HIDUP - DIGAMBAR, EKOR GOYANG ===
 function gambarIkanHidup(x, y, s, warna, dir, fase){
   let goyang = Math.sin(animTime*6 + fase) * 4;
   ctx.save(); ctx.translate(x, y); ctx.scale(dir * s, s);
@@ -500,7 +496,6 @@ function gambarIkanHidup(x, y, s, warna, dir, fase){
   ctx.restore();
 }
 
-// === KARAKTER BARU - LEBIH HIDUP, ANIMASI SMOOTH ===
 function gambarKarakter(x, y, namaP, dir, jalan, mancing, isMe, fishEmoji, fishNama, fishAt, chatText, chatAt){
   let jalanHalus = jalan > 0.1 ? 1 : 0;
   let nafas = Math.sin(animTime*2.5 + x*0.01) * 1.2;
@@ -596,14 +591,148 @@ function gambarKarakter(x, y, namaP, dir, jalan, mancing, isMe, fishEmoji, fishN
   ctx.fillText(namaP, x, y-36);
   ctx.textAlign="left";
 }
-function gambarPohon(x, y, s){
+
+// === MAP BARU - PULAU PASIR + KELAPA + KARANG + EFEK AIR ===
+function gambarAir(){
+  let gAir = ctx.createLinearGradient(0, 0, 0, WORLD_H);
+  gAir.addColorStop(0, "#1e6fd9");
+  gAir.addColorStop(0.5, "#155bb5");
+  gAir.addColorStop(1, "#0b3d91");
+  ctx.fillStyle = gAir;
+  ctx.fillRect(0, 0, WORLD_W, WORLD_H);
+  ctx.fillStyle = "rgba(255,255,255,0.06)";
+  for(let y=0; y<WORLD_H; y+=28){
+    for(let x=0; x<WORLD_W; x+=28){
+      let off = Math.sin(animTime*1.2 + (x+y)*0.02) * 3;
+      ctx.beginPath();
+      ctx.arc(x + ((y/28)%2)*14 + off, y + off, 5, 0, Math.PI*2);
+      ctx.fill();
+    }
+  }
+  for(let i=0;i<6;i++){
+    let yy = ((animTime*18 + i*260) % (WORLD_H+100)) - 50;
+    ctx.strokeStyle = `rgba(255,255,255,${0.10 - i*0.01})`;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    for(let x=0;x<=WORLD_W;x+=40){
+      let waveY = yy + Math.sin(animTime*2 + x*0.015 + i)*6;
+      if(x===0) ctx.moveTo(x, waveY); else ctx.lineTo(x, waveY);
+    }
+    ctx.stroke();
+  }
+  for(let i=0;i<20;i++){
+    let sx = 850 + Math.sin(animTime*1.5 + i)*30 + (i%5)*40;
+    let sy = 250 + i*70 + Math.cos(animTime + i)*10;
+    ctx.fillStyle = `rgba(255,255,255,${0.25 + Math.sin(animTime*3 + i)*0.15})`;
+    ctx.fillRect(sx, sy, 18 + Math.sin(animTime*2+i)*6, 2);
+  }
+}
+function gambarBuihPantai(){
+  let buih = 6 + Math.sin(animTime*1.8)*4;
+  ctx.fillStyle = "rgba(255,255,255,0.75)";
+  ctx.beginPath();
+  ctx.ellipse(WORLD_W/2, WORLD_H-100, WORLD_W/2-60, 10 + buih, 0, 0, Math.PI*2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.ellipse(100, WORLD_H/2+200, 10 + buih, WORLD_H/2-100, 0, 0, Math.PI*2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.ellipse(WORLD_W-100, WORLD_H/2+200, 10 + buih, WORLD_H/2-100, 0, 0, Math.PI*2);
+  ctx.fill();
+  ctx.fillStyle = "rgba(255,255,255,0.9)";
+  for(let i=0;i<14;i++){
+    let bx = 100 + Math.sin(animTime*2+i)*4;
+    let by = 300 + i*100 + Math.cos(animTime+i)*3;
+    ctx.beginPath(); ctx.arc(bx, by, 2, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(WORLD_W-100 + Math.cos(animTime+i)*4, by, 2, 0, Math.PI*2); ctx.fill();
+  }
+}
+function gambarPulau(){
+  ctx.fillStyle = "#f2d492";
+  ctx.beginPath();
+  ctx.ellipse(WORLD_W/2, WORLD_H/2+100, WORLD_W/2-90, WORLD_H/2-80, 0, 0, Math.PI*2);
+  ctx.fill();
+  ctx.fillStyle = "#fbe8b8";
+  ctx.beginPath();
+  ctx.ellipse(WORLD_W/2, WORLD_H/2+100, WORLD_W/2-130, WORLD_H/2-110, 0, 0, Math.PI*2);
+  ctx.fill();
+  ctx.fillStyle = "#5cb84a";
+  ctx.beginPath();
+  ctx.ellipse(WORLD_W/2, WORLD_H/2+100, WORLD_W/2-200, WORLD_H/2-180, 0, 0, Math.PI*2);
+  ctx.fill();
+  ctx.fillStyle = "#6cc957";
+  ctx.beginPath();
+  ctx.ellipse(WORLD_W/2-80, WORLD_H/2, 220, 180, 0, 0, Math.PI*2);
+  ctx.fill();
+  ctx.fillStyle = "#4aa83e";
+  ctx.beginPath();
+  ctx.ellipse(WORLD_W/2+120, WORLD_H/2+250, 200, 160, 0, 0, Math.PI*2);
+  ctx.fill();
+  for(let i=0;i<24;i++){
+    let gx = 200 + (i*47 % (WORLD_W-400));
+    let gy = 350 + (i*83 % (WORLD_H-600));
+    ctx.fillStyle = i%3===0 ? "#ff6b9d" : i%3===1 ? "#facc15" : "#fff";
+    ctx.fillRect(gx, gy, 4, 4);
+    ctx.fillStyle = "rgba(0,0,0,0.08)";
+    ctx.beginPath(); ctx.ellipse(gx, gy+8, 14, 4, 0, 0, Math.PI*2); ctx.fill();
+  }
+  ctx.fillStyle = "#e8c87a";
+  ctx.beginPath();
+  ctx.ellipse(WORLD_W/2, WORLD_H/2+100, 90, WORLD_H/2-180, 0, 0, Math.PI*2);
+  ctx.fill();
+  ctx.fillStyle = "#d4b36a";
+  ctx.fillRect(WORLD_W/2-8, 300, 16, WORLD_H-500);
+}
+function gambarKarang(x, y, s, warna){
   let goyang = Math.sin(animTime*1.5 + x)*2;
-  ctx.fillStyle="#8b4513"; ctx.fillRect(x-3, y, 6, 14*s);
-  ctx.fillStyle="#2e9e4f";
-  ctx.beginPath(); ctx.arc(x+goyang, y-6, 16*s, 0, 0, Math.PI*2); ctx.fill();
-  ctx.fillStyle="#3bb85f";
-  ctx.beginPath(); ctx.arc(x-4+goyang, y-10, 10*s, 0, 0, Math.PI*2); ctx.fill();
-  ctx.fillStyle="#ff6b6b"; ctx.fillRect(x+6, y-8, 4, 4); ctx.fillRect(x-10, y-4, 4, 4);
+  ctx.save(); ctx.translate(x, y); ctx.scale(s, s);
+  ctx.fillStyle = "rgba(0,0,0,0.15)";
+  ctx.beginPath(); ctx.ellipse(0, 16, 42, 8, 0, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = warna;
+  ctx.beginPath(); ctx.roundRect(-8, -18, 16, 36, 6); ctx.fill();
+  ctx.beginPath(); ctx.roundRect(-32, -10, 24, 10, 5); ctx.fill();
+  ctx.beginPath(); ctx.roundRect(8, -10, 24, 10, 5); ctx.fill();
+  ctx.beginPath(); ctx.roundRect(-26, -26, 12, 18, 5); ctx.fill();
+  ctx.beginPath(); ctx.roundRect(14, -26, 12, 18, 5); ctx.fill();
+  ctx.fillStyle = "rgba(255,255,255,0.35)";
+  ctx.beginPath(); ctx.ellipse(-2, -12, 5, 10, 0, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = "rgba(255,255,255,0.6)";
+  ctx.beginPath(); ctx.ellipse(goyang, 14, 30, 3, 0, 0, Math.PI*2); ctx.fill();
+  ctx.restore();
+}
+function gambarPohon(x, y, s){
+  let goyang = Math.sin(animTime*1.2 + x)*2.5;
+  ctx.save(); ctx.translate(x, y); ctx.scale(s, s);
+  ctx.fillStyle = "rgba(0,0,0,0.15)";
+  ctx.beginPath(); ctx.ellipse(2, 14, 20, 5, 0, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = "#8b5a2b";
+  ctx.beginPath();
+  ctx.moveTo(-5, 14); ctx.quadraticCurveTo(-2, -6, 2, -10);
+  ctx.lineTo(8, -10); ctx.quadraticCurveTo(6, -2, 9, 14); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = "#6b4423"; ctx.lineWidth = 1.5;
+  for(let i=0;i<4;i++){ ctx.beginPath(); ctx.moveTo(-3, 8-i*5); ctx.lineTo(7, 8-i*5); ctx.stroke(); }
+  for(let i=0;i<6;i++){
+    let sudut = -Math.PI + i*(Math.PI/5) + 0.2;
+    let dx = Math.cos(sudut)*22 + goyang;
+    let dy = Math.sin(sudut)*12 - 10;
+    ctx.strokeStyle = "#1e8a3c"; ctx.lineWidth = 4; ctx.lineCap = "round";
+    ctx.beginPath(); ctx.moveTo(4, -10); ctx.quadraticCurveTo(4+dx*0.6, -10+dy*0.6, 4+dx, -10+dy+8); ctx.stroke();
+    ctx.strokeStyle = "#2fae4f"; ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.moveTo(4, -10); ctx.quadraticCurveTo(4+dx*0.6, -10+dy*0.6, 4+dx, -10+dy+6); ctx.stroke();
+  }
+  ctx.fillStyle = "#6b4423";
+  ctx.beginPath(); ctx.arc(0, -6, 4, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(8, -6, 4, 0, Math.PI*2); ctx.fill();
+  ctx.restore();
+}
+function gambarSemak(x, y, s){
+  ctx.fillStyle = "#1e8a3c";
+  ctx.beginPath(); ctx.arc(x, y, 22*s, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = "#2fae4f";
+  ctx.beginPath(); ctx.arc(x-8, y-6, 14*s, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(x+8, y-4, 12*s, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = "#ff6b6b";
+  ctx.fillRect(x-10, y-8, 4, 4); ctx.fillRect(x+6, y-10, 4, 4);
 }
 function gambarToko(){
   let x = TOKO.x, y = TOKO.y;
@@ -645,31 +774,27 @@ function draw(){
   ctx.save();
   ctx.scale(ZOOM, ZOOM);
   ctx.translate(-camX, -camY);
-  ctx.fillStyle="#f6d67a"; ctx.fillRect(0,0,WORLD_W,WORLD_H);
-  let grad = ctx.createLinearGradient(0,0,0,WORLD_H);
-  grad.addColorStop(0,"#a4e07a"); grad.addColorStop(1,"#5cb84a");
-  ctx.fillStyle=grad; ctx.fillRect(0,0,WORLD_W,WORLD_H-100);
-  ctx.fillStyle="#e8c87a"; ctx.fillRect(150, WORLD_H/2-60, WORLD_W-300, 70);
-  ctx.fillStyle="#d4b36a"; ctx.fillRect(150, WORLD_H/2-25, WORLD_W-300, 8);
-  ctx.fillStyle="#e8c87a"; ctx.fillRect(TOKO.x-22, TOKO.y+TOKO.h, 44, WORLD_H/2-60-(TOKO.y+TOKO.h));
-  ctx.fillStyle="#2aa5e0";
-  ctx.fillRect(0, WORLD_H-100, WORLD_W, 100);
-  ctx.fillRect(0, 160, 100, WORLD_H-260);
-  ctx.fillRect(WORLD_W-100, 160, 100, WORLD_H-260);
-  ctx.fillStyle="rgba(255,255,255,0.9)";
-  ctx.fillRect(0, WORLD_H-100, WORLD_W, 3);
-  ctx.fillRect(100, 160, 3, WORLD_H-260);
-  ctx.fillRect(WORLD_W-100, 160, 3, WORLD_H-260);
-  ctx.fillStyle="rgba(255,255,255,0.28)";
-  ctx.fillRect(0, WORLD_H-112, WORLD_W, 24);
-  ctx.fillStyle="rgba(255,255,255,0.5)";
-  for(let i=0;i<WORLD_W;i+=60){
-    let y = WORLD_H-78 + Math.sin(animTime*2 + i*0.1)*3;
-    ctx.fillRect(i, y, 30, 3);
-  }
-  ctx.font="14px serif";
-  for(let i=0;i<14;i++){ ctx.fillText("🌸", 140+i*70, 200+Math.sin(i)*20); ctx.fillText("🌿", 180+i*60, WORLD_H-240); }
-  // Ikan-ikan kecil berenang di laut
+  // === MAP BARU ===
+  gambarAir();
+  gambarPulau();
+  gambarBuihPantai();
+  gambarKarang(WORLD_W-180, 420, 1.1, "#ff8a7a");
+  gambarKarang(WORLD_W-320, 380, 0.9, "#e879f9");
+  gambarKarang(60, WORLD_H-500, 0.8, "#fb923c");
+  ctx.fillStyle = "#94a3b8";
+  ctx.beginPath(); ctx.arc(WORLD_W-140, WORLD_H-280, 42, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = "#cbd5e1";
+  ctx.beginPath(); ctx.arc(WORLD_W-160, WORLD_H-300, 22, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = "#cbd5e1";
+  ctx.beginPath(); ctx.arc(240, WORLD_H-280, 10, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(280, WORLD_H-280, 10, 0, Math.PI*2); ctx.fill();
+  let api2 = 1 + Math.sin(animTime*8)*0.2;
+  ctx.font = `${Math.round(24*api2)}px serif`; ctx.fillText("🔥", 250, WORLD_H-280);
+  ctx.fillStyle = "#334155"; ctx.fillRect(TOKO.x-110, TOKO.y+TOKO.h+60, 6, 42);
+  ctx.fillStyle = "#facc15";
+  ctx.beginPath(); ctx.arc(TOKO.x-107, TOKO.y+TOKO.h+56, 8, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = "rgba(250,204,21,0.25)";
+  ctx.beginPath(); ctx.arc(TOKO.x-107, TOKO.y+TOKO.h+56, 18, 0, Math.PI*2); ctx.fill();
   ikanLaut.forEach(f=>{
     f.x += f.speed * f.dir;
     if(f.dir === 1 && f.x > WORLD_W-30) { f.dir = -1; }
@@ -680,17 +805,18 @@ function draw(){
     }
     gambarIkanHidup(f.x, f.y + Math.sin(animTime*3 + f.fase)*3, f.ukuran, f.warna, f.dir, f.fase);
   });
-  gambarPohon(200, WORLD_H-250, 1);
-  gambarPohon(WORLD_W-220, 600, 1.1);
-  gambarPohon(220, 600, 0.9);
-  gambarPohon(WORLD_W-220, WORLD_H-260, 1);
-  gambarPohon(180, 180, 1);
-  gambarPohon(WORLD_W-180, 180, 1);
+  gambarPohon(200, WORLD_H-250, 1.2);
+  gambarPohon(WORLD_W-220, 600, 1.3);
+  gambarPohon(220, 600, 1);
+  gambarPohon(WORLD_W-220, WORLD_H-260, 1.1);
+  gambarPohon(180, 180, 1.1);
+  gambarPohon(WORLD_W-180, 180, 1.2);
+  gambarPohon(420, WORLD_H-320, 1);
+  gambarPohon(WORLD_W-420, WORLD_H-320, 1);
+  gambarSemak(420, 520, 1.2);
+  gambarSemak(780, 560, 1);
+  gambarSemak(320, WORLD_H-420, 0.9);
   gambarToko();
-  let api = 1 + Math.sin(animTime*8)*0.2;
-  ctx.font=`${Math.round(22*api)}px serif`; ctx.fillText("🔥", 220, WORLD_H-210);
-  ctx.font="18px serif"; ctx.fillText("🪵", 240, WORLD_H-205);
-  ctx.font="28px serif"; ctx.fillText("⛲", WORLD_W/2, WORLD_H/2-120);
   ripples = ripples.filter(r=>r.alpha>0);
   ripples.forEach(r=>{
     r.r+=1.2; r.alpha-=0.02;
