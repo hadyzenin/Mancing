@@ -48,11 +48,11 @@ function mulaiCooldown(){
   }, 100);
 }
 
-// === CHAT GLOBAL - COOLDOWN 5 DETIK ===
+// === CHAT GLOBAL - CUMA PAPAN TIK + KIRIM, TEXT DI BAWAH PULAU TENGAH LAUT ===
 let lastChatAt = 0, chatOpen = false;
 function toggleChat(){
   chatOpen = !chatOpen;
-  document.getElementById("chatBox").style.display = chatOpen ? "block" : "none";
+  document.getElementById("chatInputBar").style.display = chatOpen ? "flex" : "none";
   if(chatOpen){
     document.getElementById("chatBadge").style.display = "none";
     setTimeout(()=>document.getElementById("chatInput").focus(), 100);
@@ -69,27 +69,26 @@ function kirimChat(){
   inp.value = "";
   document.getElementById("chatCooldown").textContent = "⏳ Cooldown 5 detik...";
   setTimeout(()=>{ document.getElementById("chatCooldown").textContent = ""; }, 5000);
-  // Bubble di atas kepala sendiri
   me.chatText = teks; me.chatAt = Date.now();
   db.ref("chat").push({ nama, teks, waktu: Date.now(), id: myID });
+  tambahChatKeList(nama, teks, true);
 }
 function tambahChatKeList(namaPengirim, teks, isMe){
-  let list = document.getElementById("chatList");
-  if(!list) return;
+  let feed = document.getElementById("chatFeed");
+  if(!feed) return;
   let div = document.createElement("div");
-  div.className = "chat-msg" + (isMe ? " me" : "");
+  div.className = "chat-line" + (isMe ? " me" : "");
   div.innerHTML = `<b>${namaPengirim}:</b> ${teks.replace(/</g,"&lt;")}`;
-  list.appendChild(div);
-  while(list.children.length > 30) list.removeChild(list.firstChild);
-  list.scrollTop = list.scrollHeight;
+  feed.appendChild(div);
+  while(feed.children.length > 5) feed.removeChild(feed.firstChild);
+  setTimeout(()=>{ if(div.parentNode) div.remove(); }, 6000);
   if(!chatOpen) document.getElementById("chatBadge").style.display = "block";
 }
 
 let tarikPos = 50, tarikDir = 1, tarikRaf = null, tarikTimeout = null, tarikKecepatan = 2, tarikZonaW = 30, tarikSisaWaktu = 8000, tarikWaktuMulai = 0, tarikLastFrame = 0, tarikBarEl = null, tarikIkanEl = null, tarikTimerEl = null;
 
-// === ZONA MANCING FIX ATAS: KAKI HARUS NYEMPLUNG KE AIR, BUKAN DI RUMPUT ===
-// Air atas: y 0-100, garis putih di y=100. Jadi boleh mancing cuma kalau y 88-112 (kaki nyentuh air)
-// Sebelumnya 105-128 -> itu masih rumput hijau di bawah air, makanya di screenshot cuki di rumput bisa mancing
+// === ZONA MANCING: KAKI HARUS NYEMPLUNG KE AIR, BUKAN DI RUMPUT ===
+// Air atas: y 0-100, garis putih di y=100. Boleh mancing cuma kalau y 88-112
 // Air bawah: y WORLD_H-100 - WORLD_H, boleh kalau y WORLD_H-112 - WORLD_H-88
 // Air kiri: x 0-100, boleh kalau x 88-112. Air kanan: x WORLD_W-100 - WORLD_W, boleh kalau x WORLD_W-112 - WORLD_W-88
 function lagiDiAir(){
@@ -157,7 +156,6 @@ function startGame(){
   camX = me.x - (innerWidth/2)/ZOOM; camY = me.y - (innerHeight/2)/ZOOM;
   save(); renderHUD(); renderInv(); draw();
   toast("Jalan sampe kakimu nyemplung ke air! 🌊");
-  // Enter di input chat = kirim
   document.getElementById("chatInput").addEventListener("keydown", e=>{ if(e.key==="Enter") kirimChat(); });
 }
 function renderHUD(){
@@ -390,7 +388,6 @@ function gambarKarakter(x, y, namaP, dir, jalan, mancing, isMe, fishEmoji, fishN
   let sisaIkan = fishAt ? (Date.now() - fishAt) : 99999;
   let lagiPamer = fishEmoji && sisaIkan < 4000;
   if(lagiPamer) lompat = -Math.abs(Math.sin(animTime*6))*6;
-  // Bubble chat di atas kepala
   if(chatText && Date.now() - chatAt < 4000){
     ctx.font="bold 11px sans-serif"; ctx.textAlign="center";
     let w = ctx.measureText(chatText).width + 16;
@@ -488,7 +485,6 @@ function draw(){
   ctx.fillRect(100, 100, WORLD_W-200, 3);
   ctx.fillRect(100, 100, 3, WORLD_H-200);
   ctx.fillRect(WORLD_W-100, 100, 3, WORLD_H-200);
-  // Zona mancing: airnya terang, rumputnya gelap - biar keliatan bedanya
   ctx.fillStyle="rgba(255,255,255,0.28)";
   ctx.fillRect(100, 88, WORLD_W-200, 24);
   ctx.fillRect(100, WORLD_H-112, WORLD_W-200, 24);
@@ -539,7 +535,6 @@ function draw(){
   me.jalan = jalan;
   gambarKarakter(me.x, me.y, nama, me.dir, jalan, me.mancing, true, me.lastFish, me.lastFishNama, me.lastFishAt, me.chatText, me.chatAt);
   if(!casting){ me.x+=me.dx; me.y+=me.dy; }
-  // Batas jalan: boleh sampe kaki nyemplung air (88), gak boleh tenggelam ke tengah air
   me.x=Math.max(88,Math.min(WORLD_W-88,me.x));
   me.y=Math.max(88,Math.min(WORLD_H-88,me.y));
   ctx.restore();
@@ -599,13 +594,12 @@ if(db){
     });
     players = players.filter(p=> data[p.id] && sekarang - data[p.id].lastSeen < 5000);
   });
-  // === DENGERIN CHAT GLOBAL ===
   db.ref("chat").limitToLast(30).on("child_added", (snap)=>{
     let c = snap.val();
     if(!c) return;
     if(Date.now() - c.waktu > 60000) return;
-    tambahChatKeList(c.nama, c.teks, c.id === myID);
-    // Bubble di atas kepala pengirim
+    if(c.id === myID) return;
+    tambahChatKeList(c.nama, c.teks, false);
     if(c.id === myID){ me.chatText = c.teks; me.chatAt = Date.now(); }
     else {
       let p = players.find(q=>q.id===c.id);
