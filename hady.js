@@ -22,6 +22,8 @@ const FISH = [
 const WORLD_W = 1200, WORLD_H = 1800;
 const ZOOM = 2.0;
 let camX = 0, camY = 0;
+// === TOKO DI DARAT ATAS ===
+const TOKO = { x: 600, y: 340, w: 170, h: 120 };
 
 let players = [];
 let me = { x: 600, y: WORLD_H-100, dx: 0, dy: 0, dir: 1, jalan: 0, mancing: false, lastFish: "", lastFishAt: 0, lastFishNama: "", chatText: "", chatAt: 0 };
@@ -40,7 +42,7 @@ function mulaiCooldown(){
     let sisa = sisaCooldown();
     if(sisa <= 0){
       clearInterval(cooldownTimer);
-      if(btn){ btn.disabled = false; btn.innerHTML = "🎣<br>Joran"; }
+      if(btn){ btn.disabled = false; updateTombolAksi(); }
       renderHUD();
       return;
     }
@@ -48,7 +50,7 @@ function mulaiCooldown(){
   }, 100);
 }
 
-// === CHAT GLOBAL - TOMBOL KECIL JADI PAPAN TIK, KLIK AREA KOSONG = NUTUP ===
+// === CHAT GLOBAL ===
 let lastChatAt = 0, chatOpen = false;
 function toggleChat(e){
   if(e) e.stopPropagation();
@@ -97,20 +99,53 @@ function tambahChatKeList(namaPengirim, teks, isMe){
 
 let tarikPos = 50, tarikDir = 1, tarikRaf = null, tarikTimeout = null, tarikKecepatan = 2, tarikZonaW = 30, tarikSisaWaktu = 8000, tarikWaktuMulai = 0, tarikLastFrame = 0, tarikBarEl = null, tarikIkanEl = null, tarikTimerEl = null;
 
-// === ZONA MANCING: KAKI HARUS NYEMPLUNG KE AIR, BUKAN DI RUMPUT ===
+// === ATAS JADI DARAT, BUKAN AIR LAGI ===
+// Air cuma: bawah (WORLD_H-100 - WORLD_H), kiri (x 0-100, y mulai 160 ke bawah), kanan (x WORLD_W-100 - WORLD_W, y mulai 160 ke bawah)
+// Atas y 0-160 itu DARAT + TOKO, gak bisa mancing di atas lagi
 function lagiDiAir(){
-  let diAtas  = me.y >= 88 && me.y <= 112;
   let diBawah = me.y >= WORLD_H-112 && me.y <= WORLD_H-88;
-  let diKiri  = me.x >= 88 && me.x <= 112;
-  let diKanan = me.x >= WORLD_W-112 && me.x <= WORLD_W-88;
-  return diAtas || diBawah || diKiri || diKanan;
+  let diKiri  = me.x >= 88 && me.x <= 112 && me.y > 160;
+  let diKanan = me.x >= WORLD_W-112 && me.x <= WORLD_W-88 && me.y > 160;
+  return diBawah || diKiri || diKanan;
 }
 function posisiRiak(){
-  if(me.y <= 112) return { x: me.x + 10, y: 50 };
   if(me.y >= WORLD_H-112) return { x: me.x + 10, y: WORLD_H-50 };
   if(me.x <= 112) return { x: 50, y: me.y + 20 };
   if(me.x >= WORLD_W-112) return { x: WORLD_W-50, y: me.y + 20 };
   return { x: me.x + 30, y: me.y + 40 };
+}
+// === ZONA TOKO ===
+function lagiDiToko(){
+  return Math.abs(me.x - TOKO.x) < 110 && Math.abs(me.y - (TOKO.y + TOKO.h)) < 110;
+}
+// === TOMBOL AKSI: JORAN / TOKO / COOLDOWN ===
+function updateTombolAksi(){
+  let btn = document.getElementById("btnFish");
+  if(!btn) return;
+  if(casting) return;
+  if(sisaCooldown() > 0) return;
+  if(lagiDiToko()){
+    btn.disabled = false;
+    btn.innerHTML = "🏪<br>Toko";
+    btn.style.background = "linear-gradient(180deg,#fbbf24,#d97706)";
+    btn.style.boxShadow = "0 6px 0 #92400e,0 10px 20px rgba(245,158,11,.5)";
+  } else if(lagiDiAir()){
+    btn.disabled = false;
+    btn.innerHTML = "🎣<br>Joran";
+    btn.style.background = "linear-gradient(180deg,#38bdf8,#0284c7)";
+    btn.style.boxShadow = "0 6px 0 #0c4a6e,0 10px 20px rgba(56,189,248,.5)";
+  } else {
+    btn.disabled = false;
+    btn.innerHTML = "🎣<br>Joran";
+    btn.style.background = "linear-gradient(180deg,#94a3b8,#64748b)";
+    btn.style.boxShadow = "0 6px 0 #334155,0 10px 20px rgba(0,0,0,.3)";
+  }
+}
+function klikTombolAksi(){
+  if(casting) return;
+  if(sisaCooldown() > 0){ toast(`⏳ Tunggu ${Math.ceil(sisaCooldown()/1000)} detik lagi...`); return; }
+  if(lagiDiToko()){ openToko("jual"); return; }
+  mulaiMancing();
 }
 
 async function apiPost(url, body){
@@ -162,19 +197,15 @@ function startGame(){
   me.x = WORLD_W/2; me.y = WORLD_H-100;
   camX = me.x - (innerWidth/2)/ZOOM; camY = me.y - (innerHeight/2)/ZOOM;
   save(); renderHUD(); renderInv(); draw();
-  toast("Jalan sampe kakimu nyemplung ke air! 🌊");
+  toast("Jalan ke atas buat ke Toko! 🏪");
   document.getElementById("chatInput").addEventListener("keydown", e=>{ if(e.key==="Enter") kirimChat(); });
-  // === KLIK AREA KOSONG MANA AJA = NUTUP PAPAN TIK ===
   let gameEl = document.getElementById("game");
   gameEl.addEventListener("click", (e)=>{
     if(!chatOpen) return;
     if(e.target.closest("#chatInputBar") || e.target.closest("#btnChat") || e.target.closest("#joy") || e.target.closest("#btnFish") || e.target.closest("#modal")) return;
     tutupChat();
   });
-  // Biar tap di canvas juga nutup (di HP, click kadang gak ke-trigger kalau canvas)
-  document.getElementById("cv").addEventListener("touchstart", ()=>{
-    if(chatOpen) tutupChat();
-  });
+  document.getElementById("cv").addEventListener("touchstart", ()=>{ if(chatOpen) tutupChat(); });
 }
 function renderHUD(){
   document.getElementById("pNama").textContent=nama;
@@ -184,26 +215,31 @@ function renderHUD(){
   document.getElementById("xpBar").style.width=(xp/xpMax*100)+"%";
   document.getElementById("pYen").textContent=yen.toLocaleString("id-ID");
   document.getElementById("buffs").innerHTML=`<i>🎣 ${RODS[rodIdx].nama}</i><i>💴 ${yen.toLocaleString()} Yen</i>`;
-  let btn = document.getElementById("btnFish");
-  if(btn && !casting && sisaCooldown() <= 0){
-    if(lagiDiAir()){
-      btn.style.background = "linear-gradient(180deg,#38bdf8,#0284c7)";
-      btn.style.boxShadow = "0 6px 0 #0c4a6e,0 10px 20px rgba(56,189,248,.5)";
-    } else {
-      btn.style.background = "linear-gradient(180deg,#94a3b8,#64748b)";
-      btn.style.boxShadow = "0 6px 0 #334155,0 10px 20px rgba(0,0,0,.3)";
-    }
-  }
+  updateTombolAksi();
 }
 function renderInv(){
   let el=document.getElementById("inv");
   el.innerHTML="";
   for(let i=0;i<5;i++){ let f=inv[i]; el.innerHTML+=`<div class="slot ${i===0?'active':''}">${f?f.emoji:""}<span>${f?(f.berat).toFixed(2):""}</span></div>`; }
-  el.innerHTML+=`<div class="slot" onclick="openMenu()" style="font-size:20px">🎒<span style="font-size:10px;font-weight:800;color:#16a34a">${inv.length}/45</span></div>`;
+  // Tas cuma buka koleksi ikan, bukan toko lagi
+  el.innerHTML+=`<div class="slot" onclick="openTas()" style="font-size:20px">🎒<span style="font-size:10px;font-weight:800;color:#16a34a">${inv.length}/45</span></div>`;
 }
 function toast(t){ let e=document.getElementById("toast"); e.textContent=t; e.style.display="block"; setTimeout(()=>e.style.display="none",3000); }
-function openMenu(){
-  let rodsHtml=RODS.map((r,i)=>{
+
+// === TAS: HANYA SIMPAN IKAN ===
+function openTas(){
+  let fishHtml=inv.length?inv.map((f,i)=>`<div class="row"><span><b>${f.emoji} ${f.nama}</b><br><small>${f.tier} • ${Number(f.berat).toFixed(2)} kg</small></span><b>💴 ${f.yen.toLocaleString()}</b></div>`).join(""):"<p style='text-align:center;color:#666;padding:12px'>Tas masih kosong, mancing dulu!</p>";
+  showModal(`<h2>🎒 Tas Ikan</h2><p style="font-size:13px;color:#666">Tas cuma buat nyimpen ikan. Mau jual / beli joran? Ke Toko di darat atas 🏪</p><div class="list">${fishHtml}</div><button onclick="closeModal()">Tutup</button><button onclick="openToko('jual')" style="background:#f59e0b">Buka Toko 🏪</button>`);
+}
+
+// === TOKO: JUAL IKAN + BELI JORAN ===
+function openToko(tab){
+  tab = tab || "jual";
+  let total = inv.reduce((a,f)=>a+f.yen,0);
+  let jualHtml = "";
+  if(!inv.length) jualHtml = "<p style='text-align:center;color:#666;padding:12px'>Gak ada ikan buat dijual.<br>Mancing dulu!</p>";
+  else jualHtml = inv.map((f,i)=>`<div class="row"><span><b>${f.emoji} ${f.nama}</b><br><small>${f.tier} • ${Number(f.berat).toFixed(2)} kg</small></span><div style="display:flex;gap:6px;align-items:center"><b>💴 ${f.yen.toLocaleString()}</b><button class="btn-jual-satu" onclick="jualSatu(${i})">Jual</button></div></div>`).join("");
+  let rodsHtml = RODS.map((r,i)=>{
     let punya = ownedRods.includes(i);
     let btn = "";
     if(i===rodIdx) btn = `<button style="background:#22c55e">Dipakai ✓</button>`;
@@ -213,31 +249,40 @@ function openMenu(){
     else btn = `<button onclick="beliJoran(${i})" style="background:#f59e0b">Beli 💴 ${r.harga.toLocaleString()}</button>`;
     return `<div class="row"><span><b>${r.icon} ${r.nama}</b><br><small>${r.desc} • Lv ${r.lv} • ${punya?"Sudah Punya":"Harga 💴 "+r.harga.toLocaleString()}</small></span><div style="min-width:110px">${btn}</div></div>`;
   }).join("");
-  let fishHtml=inv.length?inv.map(f=>`<div class="row"><span><b>${f.emoji} ${f.nama}</b><br><small>${f.tier} • ${Number(f.berat).toFixed(2)} kg</small></span><b>💴 ${f.yen.toLocaleString()}</b></div>`).join(""):"<p style='text-align:center;color:#666;padding:12px'>Tas masih kosong, mancing dulu!</p>";
-  showModal(`<h2>🎒 Tas & Toko Joran</h2><p style="font-size:14px">Yen kamu: <b>💴 ${yen.toLocaleString()}</b></p><div class="tabs"><button class="on" onclick="openMenu()">Toko Joran</button><button onclick="openTas()">Ikan (${inv.length})</button></div><div class="list">${rodsHtml}</div><button onclick="closeModal()">Tutup</button>`);
-  window._fishHtml=fishHtml;
+  let isi = tab==="jual"
+    ? `<div class="toko-total">Total kalau jual semua: 💴 ${total.toLocaleString()} Yen</div><div class="list">${jualHtml}</div>${inv.length?`<button onclick="jualSemua()" style="background:#22c55e">Jual Semua Ikan 💴 ${total.toLocaleString()}</button>`:""}`
+    : `<div class="list">${rodsHtml}</div>`;
+  showModal(`<h2>🏪 Toko</h2><p style="font-size:14px">Yen kamu: <b>💴 ${yen.toLocaleString()}</b></p><div class="toko-tabs"><button class="${tab==="jual"?"on":""}" onclick="openToko('jual')">💴 Jual Ikan (${inv.length})</button><button class="${tab==="joran"?"on":""}" onclick="openToko('joran')">🎣 Beli Joran</button></div>${isi}<button onclick="closeModal()">Tutup</button>`);
+}
+function jualSatu(i){
+  let f = inv[i];
+  if(!f) return;
+  inv.splice(i,1); yen += f.yen;
+  save(); renderHUD(); renderInv();
+  toast(`Terjual ${f.emoji} ${f.nama} +💴 ${f.yen.toLocaleString()}`);
+  openToko("jual");
+}
+function jualSemua(){
+  let total=inv.reduce((a,f)=>a+f.yen,0);
+  if(!total){ toast("Gak ada ikan buat dijual"); return; }
+  yen+=total; inv=[]; save(); renderHUD(); renderInv();
+  showModal(`<div style="font-size:48px">💴</div><h2>Terjual!</h2><p>Kamu dapet <b>💴 ${total.toLocaleString()} Yen</b></p><button onclick="closeModal()">Mantap!</button>`);
 }
 function beliJoran(i){
   let r=RODS[i];
   if(lv<r.lv){ toast("Butuh Lv "+r.lv); return; }
   if(yen<r.harga){ toast("Yen kurang! Butuh 💴 "+r.harga.toLocaleString()); return; }
   yen-=r.harga; ownedRods.push(i); rodIdx=i; save(); renderHUD();
-  toast("🎉 Berhasil beli "+r.nama+"!"); openMenu();
+  toast("🎉 Berhasil beli "+r.nama+"!"); openToko("joran");
 }
-function openTas(){ showModal(`<h2>🐟 Koleksi Ikan</h2><div class="list">${window._fishHtml||"Kosong"}</div><button onclick="closeModal()">Tutup</button><button onclick="openJual()" style="background:#22c55e">Jual Semua Ikan</button>`); }
-function openJual(){
-  let total=inv.reduce((a,f)=>a+f.yen,0);
-  if(!total){ toast("Gak ada ikan buat dijual"); return; }
-  yen+=total; inv=[]; save(); renderHUD(); renderInv();
-  showModal(`<div style="font-size:48px">💴</div><h2>Terjual!</h2><p>Kamu dapet <b>💴 ${total.toLocaleString()} Yen</b></p><button onclick="closeModal()">Mantap!</button>`);
-}
-function pilihJoran(i){ if(!ownedRods.includes(i)){ toast("Beli dulu jorannya"); return; } rodIdx=i; save(); renderHUD(); toast("Joran diganti jadi "+RODS[rodIdx].nama); closeModal(); }
+function pilihJoran(i){ if(!ownedRods.includes(i)){ toast("Beli dulu jorannya"); return; } rodIdx=i; save(); renderHUD(); toast("Joran diganti jadi "+RODS[rodIdx].nama); openToko("joran"); }
 function showModal(html){ document.getElementById("modalBox").innerHTML=html; document.getElementById("modal").style.display="flex"; }
 function closeModal(){ document.getElementById("modal").style.display="none"; }
 
 function mulaiMancing(){
   if(casting) return;
   if(sisaCooldown() > 0){ toast(`⏳ Tunggu ${Math.ceil(sisaCooldown()/1000)} detik lagi...`); return; }
+  if(lagiDiToko()){ openToko("jual"); return; }
   if(!lagiDiAir()){ toast("🚫 Masih di darat! Kakimu harus nyemplung ke air dulu 🌊"); return; }
   casting=true; me.mancing=true;
   document.getElementById("btnFish").disabled=true;
@@ -332,7 +377,7 @@ function batalMancing(pesan){
   clearTimeout(tarikTimeout);
   casting=false; me.mancing=false;
   document.getElementById("barGame").style.display="none";
-  document.getElementById("btnFish").disabled=false; document.getElementById("btnFish").innerHTML="🎣<br>Joran";
+  document.getElementById("btnFish").disabled=false; updateTombolAksi();
   toast(pesan || "Mancing batal!");
   mulaiCooldown();
   renderHUD();
@@ -342,7 +387,7 @@ function gagalMancing(pesan){
   clearTimeout(tarikTimeout);
   casting=false; me.mancing=false;
   document.getElementById("barGame").style.display="none";
-  document.getElementById("btnFish").disabled=false; document.getElementById("btnFish").innerHTML="🎣<br>Joran";
+  document.getElementById("btnFish").disabled=false; updateTombolAksi();
   toast(pesan || "Yah, ikannya lepas! 🥲");
   mulaiCooldown();
   renderHUD();
@@ -352,7 +397,7 @@ function selesaiMancing(isPerfect){
   clearTimeout(tarikTimeout);
   casting=false; me.mancing=false;
   document.getElementById("barGame").style.display="none";
-  document.getElementById("btnFish").disabled=false; document.getElementById("btnFish").innerHTML="🎣<br>Joran";
+  document.getElementById("btnFish").disabled=false; updateTombolAksi();
   let berat=curFish.min+Math.random()*(curFish.max-curFish.min);
   let bonus=1+RODS[rodIdx].power/200;
   if(isPerfect) bonus *= 1.2;
@@ -468,6 +513,33 @@ function gambarPohon(x, y, s){
   ctx.beginPath(); ctx.arc(x-4+goyang, y-10, 10*s, 0, 0, Math.PI*2); ctx.fill();
   ctx.fillStyle="#ff6b6b"; ctx.fillRect(x+6, y-8, 4, 4); ctx.fillRect(x-10, y-4, 4, 4);
 }
+function gambarToko(){
+  let x = TOKO.x, y = TOKO.y;
+  // Bayangan + lantai
+  ctx.fillStyle="rgba(0,0,0,0.18)";
+  ctx.beginPath(); ctx.ellipse(x, y+TOKO.h+8, 110, 14, 0, 0, Math.PI*2); ctx.fill();
+  // Zona toko (lingkaran putus-putus biar keliatan area-nya)
+  ctx.strokeStyle = lagiDiToko() ? "rgba(245,158,11,0.9)" : "rgba(255,255,255,0.6)";
+  ctx.setLineDash([8, 8]); ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(x, y+TOKO.h, 105, 0, 0, Math.PI*2); ctx.stroke();
+  ctx.setLineDash([]);
+  // Bangunan
+  ctx.fillStyle="#fff7ed"; ctx.fillRect(x-TOKO.w/2, y, TOKO.w, TOKO.h);
+  ctx.fillStyle="#f59e0b"; ctx.fillRect(x-TOKO.w/2, y, TOKO.w, 8);
+  // Atap
+  ctx.fillStyle="#dc2626";
+  ctx.beginPath(); ctx.moveTo(x-TOKO.w/2-14, y); ctx.lineTo(x, y-42); ctx.lineTo(x+TOKO.w/2+14, y); ctx.closePath(); ctx.fill();
+  // Pintu + jendela
+  ctx.fillStyle="#78350f"; ctx.fillRect(x-18, y+60, 36, 60);
+  ctx.fillStyle="#fef3c7"; ctx.fillRect(x-68, y+42, 38, 34);
+  ctx.fillStyle="#fef3c7"; ctx.fillRect(x+30, y+42, 38, 34);
+  ctx.fillStyle="#92400e"; ctx.fillRect(x-68, y+42, 38, 4); ctx.fillRect(x+30, y+42, 38, 4);
+  // Papan TOKO
+  ctx.fillStyle="#1e293b"; ctx.fillRect(x-52, y+8, 104, 26);
+  ctx.font="bold 15px sans-serif"; ctx.textAlign="center";
+  ctx.fillStyle="#facc15"; ctx.fillText("🏪 TOKO", x, y+26);
+  ctx.textAlign="left";
+}
 function draw(){
   if(cv.width !== innerWidth || cv.height !== innerHeight){
     cv.width = innerWidth; cv.height = innerHeight;
@@ -487,38 +559,42 @@ function draw(){
   ctx.save();
   ctx.scale(ZOOM, ZOOM);
   ctx.translate(-camX, -camY);
+  // === ATAS JADI DARAT: rumput full, air cuma bawah + kiri + kanan ===
   ctx.fillStyle="#f6d67a"; ctx.fillRect(0,0,WORLD_W,WORLD_H);
   let grad = ctx.createLinearGradient(0,0,0,WORLD_H);
-  grad.addColorStop(0,"#8ed860"); grad.addColorStop(1,"#5cb84a");
-  ctx.fillStyle=grad; ctx.fillRect(100,100,WORLD_W-200,WORLD_H-200);
+  grad.addColorStop(0,"#a4e07a"); grad.addColorStop(1,"#5cb84a");
+  ctx.fillStyle=grad; ctx.fillRect(0,0,WORLD_W,WORLD_H-100);
+  // Jalan tengah + jalan ke toko
   ctx.fillStyle="#e8c87a"; ctx.fillRect(150, WORLD_H/2-60, WORLD_W-300, 70);
   ctx.fillStyle="#d4b36a"; ctx.fillRect(150, WORLD_H/2-25, WORLD_W-300, 8);
+  ctx.fillStyle="#e8c87a"; ctx.fillRect(TOKO.x-22, TOKO.y+TOKO.h, 44, WORLD_H/2-60-(TOKO.y+TOKO.h));
+  // Air: bawah + kiri + kanan (atas gak ada air lagi)
   ctx.fillStyle="#2aa5e0";
   ctx.fillRect(0, WORLD_H-100, WORLD_W, 100);
-  ctx.fillRect(0, 0, WORLD_W, 100);
-  ctx.fillRect(0, 0, 100, WORLD_H);
-  ctx.fillRect(WORLD_W-100, 0, 100, WORLD_H);
+  ctx.fillRect(0, 160, 100, WORLD_H-260);
+  ctx.fillRect(WORLD_W-100, 160, 100, WORLD_H-260);
+  // Garis putih pinggir air
   ctx.fillStyle="rgba(255,255,255,0.9)";
-  ctx.fillRect(100, WORLD_H-100, WORLD_W-200, 3);
-  ctx.fillRect(100, 100, WORLD_W-200, 3);
-  ctx.fillRect(100, 100, 3, WORLD_H-200);
-  ctx.fillRect(WORLD_W-100, 100, 3, WORLD_H-200);
+  ctx.fillRect(0, WORLD_H-100, WORLD_W, 3);
+  ctx.fillRect(100, 160, 3, WORLD_H-260);
+  ctx.fillRect(WORLD_W-100, 160, 3, WORLD_H-260);
+  // Zona mancing terang
   ctx.fillStyle="rgba(255,255,255,0.28)";
-  ctx.fillRect(100, 88, WORLD_W-200, 24);
-  ctx.fillRect(100, WORLD_H-112, WORLD_W-200, 24);
+  ctx.fillRect(0, WORLD_H-112, WORLD_W, 24);
   ctx.fillStyle="rgba(255,255,255,0.5)";
   for(let i=0;i<WORLD_W;i+=60){
     let y = WORLD_H-78 + Math.sin(animTime*2 + i*0.1)*3;
     ctx.fillRect(i, y, 30, 3);
-    let y2 = 4 + Math.sin(animTime*2 + i*0.1)*2;
-    ctx.fillRect(i, y2, 30, 2);
   }
   ctx.font="14px serif";
   for(let i=0;i<14;i++){ ctx.fillText("🌸", 140+i*70, 200+Math.sin(i)*20); ctx.fillText("🌿", 180+i*60, WORLD_H-240); }
   gambarPohon(200, WORLD_H-250, 1);
-  gambarPohon(WORLD_W-220, 270, 1.1);
-  gambarPohon(220, 260, 0.9);
+  gambarPohon(WORLD_W-220, 600, 1.1);
+  gambarPohon(220, 600, 0.9);
   gambarPohon(WORLD_W-220, WORLD_H-260, 1);
+  gambarPohon(180, 180, 1);
+  gambarPohon(WORLD_W-180, 180, 1);
+  gambarToko();
   let api = 1 + Math.sin(animTime*8)*0.2;
   ctx.font=`${Math.round(22*api)}px serif`; ctx.fillText("🔥", 220, WORLD_H-210);
   ctx.font="18px serif"; ctx.fillText("🪵", 240, WORLD_H-205);
@@ -553,16 +629,16 @@ function draw(){
   me.jalan = jalan;
   gambarKarakter(me.x, me.y, nama, me.dir, jalan, me.mancing, true, me.lastFish, me.lastFishNama, me.lastFishAt, me.chatText, me.chatAt);
   if(!casting){ me.x+=me.dx; me.y+=me.dy; }
-  me.x=Math.max(88,Math.min(WORLD_W-88,me.x));
-  me.y=Math.max(88,Math.min(WORLD_H-88,me.y));
-  ctx.restore();
-  if(!casting && sisaCooldown() <= 0){
-    let btn = document.getElementById("btnFish");
-    if(btn){
-      if(lagiDiAir()){ btn.style.background = "linear-gradient(180deg,#38bdf8,#0284c7)"; btn.style.boxShadow = "0 6px 0 #0c4a6e,0 10px 20px rgba(56,189,248,.5)"; }
-      else { btn.style.background = "linear-gradient(180deg,#94a3b8,#64748b)"; btn.style.boxShadow = "0 6px 0 #334155,0 10px 20px rgba(0,0,0,.3)"; }
-    }
+  // Batas jalan: atas bisa sampe darat paling atas (y 20), bawah sampe air
+  me.x=Math.max(20,Math.min(WORLD_W-20,me.x));
+  me.y=Math.max(20,Math.min(WORLD_H-88,me.y));
+  // Jangan nabrak toko: dorong keluar dari kotak toko
+  if(me.x > TOKO.x-TOKO.w/2-14 && me.x < TOKO.x+TOKO.w/2+14 && me.y > TOKO.y-20 && me.y < TOKO.y+TOKO.h+10){
+    if(me.y < TOKO.y+TOKO.h/2) me.y = TOKO.y-20;
+    else me.y = TOKO.y+TOKO.h+10;
   }
+  ctx.restore();
+  if(!casting) updateTombolAksi();
   requestAnimationFrame(draw);
 }
 setInterval(()=>{ let d=new Date(); document.getElementById("jam").textContent=d.toLocaleDateString("id-ID",{weekday:"short",day:"numeric",month:"short"})+" · "+d.toLocaleTimeString("id-ID",{hour:"2-digit",minute:"2-digit"})+" WITA"; },1000);
