@@ -26,8 +26,8 @@ let casting = false, curFish = null, zoneL = 35;
 let animTime = 0, ripples = [], daun = [];
 for(let i=0;i<20;i++) daun.push({x: Math.random()*1000, y: Math.random()*800, s: Math.random()*2+1, speed: Math.random()*0.5+0.3});
 
-// === TANTANGAN TARIK V2 - CUMA 1x TAP ===
-let tarikPos = 50, tarikDir = 1, tarikTimer = null, tarikTimeout = null, tarikKecepatan = 2, tarikZonaW = 30, tarikSisaWaktu = 8000, tarikWaktuMulai = 0, tarikTimerAnim = null;
+// === TANTANGAN TARIK V2 - ANTI LAG PAKAI RAF ===
+let tarikPos = 50, tarikDir = 1, tarikRaf = null, tarikTimeout = null, tarikKecepatan = 2, tarikZonaW = 30, tarikSisaWaktu = 8000, tarikWaktuMulai = 0, tarikLastFrame = 0, tarikBarEl = null, tarikIkanEl = null, tarikTimerEl = null;
 
 function lagiDiAir(){
   let diAirBawah = me.y > innerHeight - 145;
@@ -101,13 +101,15 @@ function renderHUD(){
   document.getElementById("xpBar").style.width=(xp/xpMax*100)+"%";
   document.getElementById("pYen").textContent=yen.toLocaleString("id-ID");
   document.getElementById("pTitle").textContent=RODS[rodIdx].nama;
-  document.getElementById("buffs").innerHTML=`<i>🎣 ${RODS[rodIdx].nama}</i><i>💴 ${yen.toLocaleString()} Yen</i><i>🐟 ${inv.length}/45</i>`;
+  // JUMLAH IKAN DIHAPUS DARI SINI
+  document.getElementById("buffs").innerHTML=`<i>🎣 ${RODS[rodIdx].nama}</i><i>💴 ${yen.toLocaleString()} Yen</i>`;
 }
 function renderInv(){
   let el=document.getElementById("inv");
   el.innerHTML="";
   for(let i=0;i<5;i++){ let f=inv[i]; el.innerHTML+=`<div class="slot ${i===0?'active':''}">${f?f.emoji:""}<span>${f?(f.berat).toFixed(2):""}</span></div>`; }
-  el.innerHTML+=`<div class="slot" onclick="openMenu()" style="font-size:20px">🎒<span>${inv.length}/45</span></div>`;
+  // TAS TANPA ANGKA 0/45
+  el.innerHTML+=`<div class="slot" onclick="openMenu()" style="font-size:20px">🎒<span>&nbsp;</span></div>`;
 }
 function toast(t){ let e=document.getElementById("toast"); e.textContent=t; e.style.display="block"; setTimeout(()=>e.style.display="none",3000); }
 function openMenu(){
@@ -160,13 +162,37 @@ function mulaiMancing(){
   },1200+Math.random()*1000);
 }
 
+// === LOOP TARIK ANTI LAG - RAF + TRANSFORM ===
+function tarikLoop(now){
+  if(!casting) return;
+  if(!tarikLastFrame) tarikLastFrame = now;
+  let dt = Math.min(32, now - tarikLastFrame); // clamp biar gak loncat pas lag
+  tarikLastFrame = now;
+  let step = tarikKecepatan * (dt / 16.6);
+  tarikPos += tarikDir * step;
+  if(tarikPos > 92){ tarikPos = 92; tarikDir = -1; }
+  if(tarikPos < 2){ tarikPos = 2; tarikDir = 1; }
+  if(tarikBarEl && tarikIkanEl){
+    let barW = tarikBarEl.offsetWidth;
+    let x = (tarikPos / 100) * barW - 18;
+    tarikIkanEl.style.transform = `translate(${x}px,-50%)`;
+  }
+  // Timer bar - update di RAF yang sama, gak pake interval lagi
+  if(tarikTimerEl){
+    let sisa = tarikSisaWaktu - (now - tarikWaktuMulai);
+    let pct = Math.max(0, sisa / tarikSisaWaktu * 100);
+    tarikTimerEl.style.width = pct + "%";
+  }
+  tarikRaf = requestAnimationFrame(tarikLoop);
+}
+
 function mulaiTantangan(){
   let cfg = {
-    Common:    { zona: 38, speed: 1.4, waktu: 8000, label: "Mudah 😊" },
-    Uncommon:  { zona: 30, speed: 2.0, waktu: 7000, label: "Lumayan 😐" },
-    Rare:      { zona: 22, speed: 2.8, waktu: 6000, label: "Sulit 😬" },
-    Epic:      { zona: 15, speed: 3.6, waktu: 5000, label: "Sangat Sulit 😱" },
-    Legendary: { zona: 10, speed: 4.6, waktu: 4000, label: "GILA! 🔥🔥" },
+    Common:    { zona: 38, speed: 1.4, waktu: 8000 },
+    Uncommon:  { zona: 30, speed: 2.0, waktu: 7000 },
+    Rare:      { zona: 22, speed: 2.8, waktu: 6000 },
+    Epic:      { zona: 15, speed: 3.6, waktu: 5000 },
+    Legendary: { zona: 10, speed: 4.6, waktu: 4000 },
   };
   let c = cfg[curFish.tier] || cfg.Common;
   tarikZonaW = c.zona;
@@ -179,8 +205,6 @@ function mulaiTantangan(){
   tierEl.textContent = curFish.tier.toUpperCase();
   tierEl.className = "tarik-tier " + curFish.tier;
   document.getElementById("tantanganNama").textContent = curFish.nama + " Nyangkut!";
-  document.getElementById("tantanganInfo").textContent = `1x kesempatan! Tap TARIK pas di zona hijau!`;
-  document.getElementById("tarikKesulitan").textContent = c.label;
   let zoneEl = document.getElementById("barZone");
   zoneEl.style.left = zoneL + "%";
   zoneEl.style.width = tarikZonaW + "%";
@@ -190,20 +214,17 @@ function mulaiTantangan(){
   perfectEl.style.width = perfectW + "%";
   document.getElementById("barGame").style.display = "block";
   document.getElementById("tarikTimerBar").style.width = "100%";
-  clearInterval(tarikTimer); clearInterval(tarikTimerAnim); clearTimeout(tarikTimeout);
-  tarikTimer = setInterval(()=>{
-    tarikPos += tarikDir * tarikKecepatan;
-    if(tarikPos > 92){ tarikPos = 92; tarikDir = -1; }
-    if(tarikPos < 2){ tarikPos = 2; tarikDir = 1; }
-    document.getElementById("ikanGerak").style.left = tarikPos + "%";
-    document.getElementById("ikanGerak").textContent = curFish.emoji;
-  }, 30);
-  tarikWaktuMulai = Date.now();
-  tarikTimerAnim = setInterval(()=>{
-    let sisa = tarikSisaWaktu - (Date.now() - tarikWaktuMulai);
-    let pct = Math.max(0, sisa / tarikSisaWaktu * 100);
-    document.getElementById("tarikTimerBar").style.width = pct + "%";
-  }, 50);
+
+  tarikBarEl = document.querySelector(".tarik-bar");
+  tarikIkanEl = document.getElementById("ikanGerak");
+  tarikTimerEl = document.getElementById("tarikTimerBar");
+  tarikIkanEl.textContent = curFish.emoji;
+  tarikWaktuMulai = performance.now();
+  tarikLastFrame = 0;
+
+  if(tarikRaf) cancelAnimationFrame(tarikRaf);
+  clearTimeout(tarikTimeout);
+  tarikRaf = requestAnimationFrame(tarikLoop);
   tarikTimeout = setTimeout(()=>{
     if(casting) gagalMancing("⏰ Kelamaan! Ikannya lepas...");
   }, tarikSisaWaktu);
@@ -211,7 +232,8 @@ function mulaiTantangan(){
 
 function cobaTarik(){
   if(!casting) return;
-  clearInterval(tarikTimer); clearInterval(tarikTimerAnim); clearTimeout(tarikTimeout);
+  if(tarikRaf) cancelAnimationFrame(tarikRaf);
+  clearTimeout(tarikTimeout);
   let zonaAwal = zoneL;
   let zonaAkhir = zoneL + tarikZonaW;
   let perfectAwal = zoneL + tarikZonaW/2 - (tarikZonaW*0.35)/2;
@@ -228,7 +250,8 @@ function cobaTarik(){
 }
 
 function gagalMancing(pesan){
-  clearInterval(tarikTimer); clearInterval(tarikTimerAnim); clearTimeout(tarikTimeout);
+  if(tarikRaf) cancelAnimationFrame(tarikRaf);
+  clearTimeout(tarikTimeout);
   casting=false; me.mancing=false;
   document.getElementById("barGame").style.display="none";
   document.getElementById("btnFish").disabled=false; document.getElementById("btnFish").innerHTML="🎣<br>Joran";
@@ -236,7 +259,8 @@ function gagalMancing(pesan){
 }
 
 function selesaiMancing(isPerfect){
-  clearInterval(tarikTimer); clearInterval(tarikTimerAnim); clearTimeout(tarikTimeout);
+  if(tarikRaf) cancelAnimationFrame(tarikRaf);
+  clearTimeout(tarikTimeout);
   casting=false; me.mancing=false;
   document.getElementById("barGame").style.display="none";
   document.getElementById("btnFish").disabled=false; document.getElementById("btnFish").innerHTML="🎣<br>Joran";
@@ -270,6 +294,7 @@ joy.addEventListener("touchstart",e=>{dragging=true; moveJoy(e)}); joy.addEventL
 joy.addEventListener("mousedown",e=>{dragging=true; moveJoy(e)}); window.addEventListener("mousemove",e=>{if(dragging) moveJoy(e)}); window.addEventListener("mouseup",()=>{dragging=false; stick.style.left="26px"; stick.style.top="26px"; me.dx=0; me.dy=0;});
 
 const cv=document.getElementById("cv"), ctx=cv.getContext("2d");
+let cvW = 0, cvH = 0;
 function gambarKarakter(x, y, namaP, dir, jalan, mancing, isMe, fishEmoji, fishNama, fishAt){
   let bob = Math.sin(animTime*4 + x)*1.5;
   if(jalan>0.1) bob = Math.abs(Math.sin(animTime*10))*3;
@@ -333,31 +358,35 @@ function gambarPohon(x, y, s){
   ctx.fillStyle="#ff6b6b"; ctx.fillRect(x+6, y-8, 4, 4); ctx.fillRect(x-10, y-4, 4, 4);
 }
 function draw(){
-  cv.width=innerWidth; cv.height=innerHeight;
+  // FIX LAG: canvas cuma di-resize kalo ukuran layar berubah, bukan tiap frame
+  if(cv.width !== innerWidth || cv.height !== innerHeight){
+    cv.width = innerWidth; cv.height = innerHeight;
+    cvW = innerWidth; cvH = innerHeight;
+  }
   animTime += 0.016;
-  ctx.fillStyle="#f6d67a"; ctx.fillRect(0,0,cv.width,cv.height);
-  let grad = ctx.createLinearGradient(0,0,0,cv.height);
+  ctx.fillStyle="#f6d67a"; ctx.fillRect(0,0,cvW,cvH);
+  let grad = ctx.createLinearGradient(0,0,0,cvH);
   grad.addColorStop(0,"#8ed860"); grad.addColorStop(1,"#5cb84a");
-  ctx.fillStyle=grad; ctx.fillRect(30,50,cv.width-60,cv.height-130);
-  ctx.fillStyle="#e8c87a"; ctx.fillRect(50,110,cv.width-100,70);
-  ctx.fillStyle="#d4b36a"; ctx.fillRect(50,140,cv.width-100,8);
-  ctx.fillStyle="#2aa5e0"; ctx.fillRect(0,cv.height-80,cv.width,80); ctx.fillRect(0,0,cv.width,24);
+  ctx.fillStyle=grad; ctx.fillRect(30,50,cvW-60,cvH-130);
+  ctx.fillStyle="#e8c87a"; ctx.fillRect(50,110,cvW-100,70);
+  ctx.fillStyle="#d4b36a"; ctx.fillRect(50,140,cvW-100,8);
+  ctx.fillStyle="#2aa5e0"; ctx.fillRect(0,cvH-80,cvW,80); ctx.fillRect(0,0,cvW,24);
   ctx.fillStyle="rgba(255,255,255,0.5)";
-  for(let i=0;i<cv.width;i+=60){
-    let y = cv.height-78 + Math.sin(animTime*2 + i*0.1)*3;
+  for(let i=0;i<cvW;i+=60){
+    let y = cvH-78 + Math.sin(animTime*2 + i*0.1)*3;
     ctx.fillRect(i, y, 30, 3);
     let y2 = 4 + Math.sin(animTime*2 + i*0.1)*2;
     ctx.fillRect(i, y2, 30, 2);
   }
   ctx.font="14px serif";
-  for(let i=0;i<10;i++){ ctx.fillText("🌸", 60+i*70, 90+Math.sin(i)*20); ctx.fillText("🌿", 80+i*60, cv.height-140); }
-  gambarPohon(80, cv.height-150, 1);
-  gambarPohon(cv.width-90, 170, 1.1);
+  for(let i=0;i<10;i++){ ctx.fillText("🌸", 60+i*70, 90+Math.sin(i)*20); ctx.fillText("🌿", 80+i*60, cvH-140); }
+  gambarPohon(80, cvH-150, 1);
+  gambarPohon(cvW-90, 170, 1.1);
   gambarPohon(90, 160, 0.9);
   let api = 1 + Math.sin(animTime*8)*0.2;
-  ctx.font=`${Math.round(22*api)}px serif`; ctx.fillText("🔥", 90, cv.height-110);
-  ctx.font="18px serif"; ctx.fillText("🪵", 110, cv.height-105);
-  ctx.font="28px serif"; ctx.fillText("⛲", cv.width/2, cv.height/2-20);
+  ctx.font=`${Math.round(22*api)}px serif`; ctx.fillText("🔥", 90, cvH-110);
+  ctx.font="18px serif"; ctx.fillText("🪵", 110, cvH-105);
+  ctx.font="28px serif"; ctx.fillText("⛲", cvW/2, cvH/2-20);
   ripples = ripples.filter(r=>r.alpha>0);
   ripples.forEach(r=>{
     r.r+=1.2; r.alpha-=0.02;
@@ -366,8 +395,8 @@ function draw(){
   });
   daun.forEach(d=>{
     d.y+=d.speed; d.x+=Math.sin(animTime+d.y)*0.5;
-    if(d.y>cv.height) d.y=0;
-    ctx.font="12px serif"; ctx.fillText("🍃", d.x % cv.width, d.y);
+    if(d.y>cvH) d.y=0;
+    ctx.font="12px serif"; ctx.fillText("🍃", d.x % cvW, d.y);
   });
   players.forEach(p=>{
     p.x += ((p.tx ?? p.x) - p.x) * 0.35;
@@ -380,7 +409,7 @@ function draw(){
   me.jalan = jalan;
   gambarKarakter(me.x, me.y, nama, me.dir, jalan, me.mancing, true, me.lastFish, me.lastFishNama, me.lastFishAt);
   me.x+=me.dx; me.y+=me.dy;
-  me.x=Math.max(40,Math.min(cv.width-40,me.x)); me.y=Math.max(70,Math.min(cv.height-110,me.y));
+  me.x=Math.max(40,Math.min(cvW-40,me.x)); me.y=Math.max(70,Math.min(cvH-110,me.y));
   requestAnimationFrame(draw);
 }
 setInterval(()=>{ let d=new Date(); document.getElementById("jam").textContent=d.toLocaleDateString("id-ID",{weekday:"short",day:"numeric",month:"short"})+" · "+d.toLocaleTimeString("id-ID",{hour:"2-digit",minute:"2-digit"})+" WITA"; },1000);
@@ -406,7 +435,7 @@ setInterval(()=>{
   let nx = Math.round(me.x / innerWidth * 1000);
   let ny = Math.round(me.y / innerHeight * 1000);
   db.ref("online/" + myID).set({ nama, x: nx, y: ny, lv, mancing: me.mancing, dir: me.dir, lastFish: me.lastFish || "", lastFishNama: me.lastFishNama || "", lastFishAt: me.lastFishAt || 0, lastSeen: Date.now() });
-}, 100);
+}, 150);
 if(db){
   db.ref("online").on("value", (snap)=>{
     let data = snap.val() || {};
